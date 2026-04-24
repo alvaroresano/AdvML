@@ -1,0 +1,83 @@
+{
+  "target_column": "nasdaq log_return",
+  "order": [
+    0,
+    0,
+    0
+  ],
+  "seasonal_order": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "aic_auto_arima": -19559.63699147061,
+  "aic_sarimax": -19553.46202208729,
+  "bic_sarimax": -19492.2948658391,
+  "trend": "c",
+  "train_rows": 3351,
+  "test_rows": 252,
+  "design_rows": 3603,
+  "train_start": "2010-05-03",
+  "train_end": "2023-10-16",
+  "test_start": "2023-10-17",
+  "test_end": "2024-10-18",
+  "exogenous_columns": [
+    "sp500_ret_l1",
+    "gold_ret_l1",
+    "oil_ret_l1",
+    "eur_usd_ret_l1",
+    "usd_chf_ret_l1",
+    "gdp_growth_l1",
+    "cpi_inflation_l1",
+    "rate_change_l1"
+  ],
+  "scaling_stats": {
+    "mean": {
+      "sp500_ret_l1": 0.0003709478252674157,
+      "gold_ret_l1": 0.00010479499936727608,
+      "oil_ret_l1": 0.00021322045053902375,
+      "eur_usd_ret_l1": -6.920423626653472e-05,
+      "usd_chf_ret_l1": -5.447427957910904e-05,
+      "gdp_growth_l1": 0.00016764407344537047,
+      "cpi_inflation_l1": 0.0001032625021025296,
+      "rate_change_l1": 0.0015308863025962401
+    },
+    "std": {
+      "sp500_ret_l1": 0.011087891270321754,
+      "gold_ret_l1": 0.009795387857443168,
+      "oil_ret_l1": 0.04360501088299761,
+      "eur_usd_ret_l1": 0.005348055583386478,
+      "usd_chf_ret_l1": 0.006189407874202679,
+      "gdp_growth_l1": 0.0034393930155222994,
+      "cpi_inflation_l1": 0.0008909740768673487,
+      "rate_change_l1": 0.04370094018966824
+    }
+  },
+  "evaluation_metrics": {
+    "rmse": 0.011026298834373824,
+    "mae": 0.008240325541038256,
+    "directional_accuracy": 0.5277777777777778,
+    "mean_forecast_error": 0.000490252861347611
+  },
+  "ljung_box": {
+    "5": {
+      "statistic": 10.64847145706059,
+      "p_value": 0.058812839883307225
+    },
+    "10": {
+      "statistic": 73.40025273902447,
+      "p_value": 9.73629254340469e-12
+    },
+    "20": {
+      "statistic": 94.67641984145325,
+      "p_value": 1.115586030302617e-11
+    }
+  },
+  "jarque_bera": {
+    "statistic": 4837.288712591441,
+    "p_value": 0.0,
+    "skewness": -0.5934346881105134,
+    "kurtosis": 8.765084739300818
+  }
+}
