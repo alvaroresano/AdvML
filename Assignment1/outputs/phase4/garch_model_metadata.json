@@ -1,0 +1,79 @@
+{
+  "order": [
+    1,
+    1
+  ],
+  "distribution": "t",
+  "scale_factor": 100.0,
+  "train_rows": 3351,
+  "test_rows": 252,
+  "train_start": "2010-05-03",
+  "train_end": "2023-10-16",
+  "test_start": "2023-10-17",
+  "test_end": "2024-10-18",
+  "omega": 0.02732824943252761,
+  "alpha_1": 0.12766765825675533,
+  "beta_1": 0.8639576616134588,
+  "persistence": 0.9916253198702141,
+  "nu": 5.890720467345483,
+  "unconditional_volatility": 0.018064327255589544,
+  "half_life_periods": 82.41994424586073,
+  "loglikelihood": -5031.848073430712,
+  "aic": 10071.696146861424,
+  "bic": 10096.163009360702,
+  "evaluation_metrics": {
+    "qlike": -8.249013950484262,
+    "variance_rmse": 0.00017362346509594562,
+    "volatility_rmse": 0.007098183031600681
+  },
+  "diagnostics": {
+    "ljung_box_standardized_residual_lag_5": {
+      "statistic": 20.293929229234223,
+      "p_value": 0.001100531693162407,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "ljung_box_standardized_residual_lag_10": {
+      "statistic": 28.829307073321356,
+      "p_value": 0.001327826325787786,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "ljung_box_standardized_residual_lag_20": {
+      "statistic": 35.95330772382794,
+      "p_value": 0.015576594230011346,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "ljung_box_squared_standardized_residual_lag_5": {
+      "statistic": 1.3156324077883494,
+      "p_value": 0.9333149246995223,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "ljung_box_squared_standardized_residual_lag_10": {
+      "statistic": 7.959308599831465,
+      "p_value": 0.6328117410687654,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "ljung_box_squared_standardized_residual_lag_20": {
+      "statistic": 23.84328763858323,
+      "p_value": 0.24930474383516898,
+      "extra_1": null,
+      "extra_2": null
+    },
+    "arch_lm_lag_10": {
+      "statistic": 7.982480738517587,
+      "p_value": 0.6305482708593585,
+      "extra_1": 0.7975251698080879,
+      "extra_2": 0.6312516211562973
+    },
+    "jarque_bera_standardized_residual": {
+      "statistic": 561.0485726525774,
+      "p_value": 1.4785990017147418e-122,
+      "extra_1": -0.5750268894938411,
+      "extra_2": 4.642202413294639
+    }
+  }
+}

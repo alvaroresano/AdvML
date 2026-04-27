@@ -47,6 +47,9 @@ def build_notebook() -> nbf.NotebookNode:
             - stationarity findings from the ADF tests,
             - STL decomposition outputs from Phase 2,
             - and the classical SARIMAX benchmark from Phase 3.
+            - GARCH volatility outputs from Phase 4,
+            - the PatchTST-style deep benchmark from Phase 5,
+            - and the rolling backtesting results from Phase 6.
 
             Folder scope for this notebook:
 
@@ -54,6 +57,9 @@ def build_notebook() -> nbf.NotebookNode:
             - `Assignment1/outputs/phase1/`
             - `Assignment1/outputs/phase2/`
             - `Assignment1/outputs/phase3/`
+            - `Assignment1/outputs/phase4/`
+            - `Assignment1/outputs/phase5/`
+            - `Assignment1/outputs/phase6/`
 
             The only file outside `Assignment1/` that relates to this workflow is `Project_Memoire.md`,
             but this notebook does not depend on it.
@@ -63,13 +69,16 @@ def build_notebook() -> nbf.NotebookNode:
             """
             ## How To Read This Notebook
 
-            The notebook is structured in five blocks:
+            The notebook is structured in eight blocks:
 
             1. Data health and transformation overview
             2. Return behavior and stationarity
             3. Technical-indicator dashboards
             4. STL decomposition dashboards
             5. Classical SARIMAX baseline diagnostics
+            6. GARCH volatility diagnostics
+            7. Deep-learning PatchTST-style benchmark
+            8. Rolling backtesting and market-friction evaluation
 
             If you need a quick oral explanation for class, the core story is:
 
@@ -77,13 +86,19 @@ def build_notebook() -> nbf.NotebookNode:
             - log returns are much more stationary,
             - technical indicators summarize momentum, trend, and local volatility,
             - STL shows that most assets have strong trend structure but weak weekly seasonality,
-            - and the Phase 3 baseline checks whether a classical linear time-series model can explain the mean process well.
+            - the Phase 3 baseline checks whether a classical linear time-series model can explain the mean process well,
+            - Phase 4 checks whether the remaining residual risk is conditionally heteroskedastic,
+            - Phase 5 tests whether a modern sequence model can extract nonlinear structure beyond the classical benchmark,
+            - and Phase 6 checks whether forecasting gains survive repeated historical evaluation once trading frictions are included.
             """
         ),
         code_cell(
             """
             import json
+            import os
             from pathlib import Path
+
+            os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
 
             import numpy as np
             import pandas as pd
@@ -145,6 +160,9 @@ def build_notebook() -> nbf.NotebookNode:
             PHASE1_DIR = ASSIGNMENT1_DIR / "outputs" / "phase1"
             PHASE2_DIR = ASSIGNMENT1_DIR / "outputs" / "phase2"
             PHASE3_DIR = ASSIGNMENT1_DIR / "outputs" / "phase3"
+            PHASE4_DIR = ASSIGNMENT1_DIR / "outputs" / "phase4"
+            PHASE5_DIR = ASSIGNMENT1_DIR / "outputs" / "phase5"
+            PHASE6_DIR = ASSIGNMENT1_DIR / "outputs" / "phase6"
 
             raw_df = pd.read_csv(RAW_DATA_PATH, parse_dates=["date"]).sort_values("date")
             cleaned_df = pd.read_csv(PHASE1_DIR / "cleaned_data.csv", parse_dates=["date"]).sort_values("date")
@@ -161,6 +179,26 @@ def build_notebook() -> nbf.NotebookNode:
             phase3_qq_df = pd.read_csv(PHASE3_DIR / "qq_plot_data.csv")
             with open(PHASE3_DIR / "model_metadata.json", "r", encoding="utf-8") as handle:
                 phase3_meta = json.load(handle)
+            phase4_train_df = pd.read_csv(PHASE4_DIR / "train_volatility.csv", parse_dates=["date"]).sort_values("date")
+            phase4_test_df = pd.read_csv(PHASE4_DIR / "test_volatility_forecasts.csv", parse_dates=["date"]).sort_values("date")
+            phase4_param_df = pd.read_csv(PHASE4_DIR / "garch_parameter_summary.csv")
+            phase4_diag_df = pd.read_csv(PHASE4_DIR / "garch_residual_diagnostics.csv")
+            phase4_qq_df = pd.read_csv(PHASE4_DIR / "garch_qq_plot_data.csv")
+            with open(PHASE4_DIR / "garch_model_metadata.json", "r", encoding="utf-8") as handle:
+                phase4_meta = json.load(handle)
+            phase5_history_df = pd.read_csv(PHASE5_DIR / "training_history.csv")
+            phase5_validation_df = pd.read_csv(PHASE5_DIR / "validation_predictions.csv", parse_dates=["date"]).sort_values("date")
+            phase5_test_df = pd.read_csv(PHASE5_DIR / "test_predictions.csv", parse_dates=["date"]).sort_values("date")
+            phase5_feature_schema_df = pd.read_csv(PHASE5_DIR / "feature_schema.csv")
+            with open(PHASE5_DIR / "model_metadata.json", "r", encoding="utf-8") as handle:
+                phase5_meta = json.load(handle)
+            phase6_folds_df = pd.read_csv(PHASE6_DIR / "fold_definitions.csv")
+            phase6_fold_metrics_df = pd.read_csv(PHASE6_DIR / "fold_metrics.csv")
+            phase6_predictions_df = pd.read_csv(PHASE6_DIR / "prediction_records.csv", parse_dates=["date"]).sort_values(["model", "date"])
+            phase6_strategy_df = pd.read_csv(PHASE6_DIR / "strategy_daily_returns.csv", parse_dates=["date"]).sort_values(["model", "date"])
+            phase6_summary_df = pd.read_csv(PHASE6_DIR / "strategy_summary.csv")
+            with open(PHASE6_DIR / "model_metadata.json", "r", encoding="utf-8") as handle:
+                phase6_meta = json.load(handle)
 
             assets = [column.removesuffix(" close") for column in cleaned_df.columns if column.endswith(" close")]
             close_columns = [f"{asset} close" for asset in assets]
@@ -173,6 +211,9 @@ def build_notebook() -> nbf.NotebookNode:
             print(f"Featured shape: {featured_df.shape}")
             print(f"Modeling shape: {modeling_df.shape}")
             print(f"Phase 3 train/test: {phase3_meta['train_rows']} / {phase3_meta['test_rows']}")
+            print(f"Phase 4 persistence: {phase4_meta['persistence']:.4f}")
+            print(f"Phase 5 test RMSE: {phase5_meta['evaluation_metrics']['rmse']:.6f}")
+            print(f"Phase 6 folds: {phase6_meta['num_folds']}")
             """
         ),
         markdown_cell(
@@ -800,12 +841,12 @@ def build_notebook() -> nbf.NotebookNode:
             """
             phase3_metrics = phase3_meta["evaluation_metrics"]
             phase3_indicators = [
-                ("ARIMA order", "".join(map(str, phase3_meta["order"]))),
-                ("Seasonal order", ",".join(map(str, phase3_meta["seasonal_order"]))),
+                ("Train rows", phase3_meta["train_rows"]),
+                ("Test rows", phase3_meta["test_rows"]),
                 ("Test RMSE", round(phase3_metrics["rmse"], 6)),
                 ("Test MAE", round(phase3_metrics["mae"], 6)),
                 ("Hit rate", round(phase3_metrics["directional_accuracy"], 4)),
-                ("Test start", phase3_meta["test_start"]),
+                ("Mean error", round(phase3_metrics["mean_forecast_error"], 6)),
             ]
 
             fig = make_subplots(
@@ -828,6 +869,17 @@ def build_notebook() -> nbf.NotebookNode:
 
             fig.update_layout(height=240, title="Phase 3 Benchmark Snapshot")
             fig.show()
+
+            pd.DataFrame(
+                {
+                    "item": ["ARIMA order", "Seasonal order", "Test window"],
+                    "value": [
+                        tuple(phase3_meta["order"]),
+                        tuple(phase3_meta["seasonal_order"]),
+                        f"{phase3_meta['test_start']} to {phase3_meta['test_end']}",
+                    ],
+                }
+            )
             """
         ),
         code_cell(
@@ -1063,6 +1115,871 @@ def build_notebook() -> nbf.NotebookNode:
 
             "The classical mean model captures part of the signal, but the residuals still contain dependence and heavy tails.
             So the next stages should focus on modeling conditional variance and richer forecasting structure, not just the conditional mean."
+            """
+        ),
+        markdown_cell(
+            """
+            ## 6. GARCH Volatility Diagnostics
+
+            Phase 4 asks a different question from Phase 3.
+
+            Phase 3 modeled the **conditional mean** of returns.
+            Phase 4 models the **conditional variance** of the remaining errors.
+
+            In plain language:
+
+            - the mean model asks: "What is the expected return?"
+            - the GARCH model asks: "How much risk or volatility should we expect around that mean?"
+
+            This matters in finance because volatility is not constant. Quiet periods and turbulent periods tend to cluster.
+            """
+        ),
+        code_cell(
+            """
+            phase4_metrics = phase4_meta["evaluation_metrics"]
+            phase4_indicators = [
+                ("Persistence", round(phase4_meta["persistence"], 4)),
+                ("Uncond. vol", round(phase4_meta["unconditional_volatility"], 4)),
+                ("Half-life", round(phase4_meta["half_life_periods"], 2)),
+                ("nu", round(phase4_meta["nu"], 4)),
+                ("QLIKE", round(phase4_metrics["qlike"], 4)),
+                ("Vol RMSE", round(phase4_metrics["volatility_rmse"], 4)),
+            ]
+
+            fig = make_subplots(
+                rows=1,
+                cols=len(phase4_indicators),
+                specs=[[{"type": "indicator"} for _ in phase4_indicators]],
+            )
+
+            for index, (label, value) in enumerate(phase4_indicators, start=1):
+                fig.add_trace(
+                    go.Indicator(
+                        mode="number",
+                        value=value,
+                        title={"text": label},
+                        number={"font": {"size": 30}},
+                    ),
+                    row=1,
+                    col=index,
+                )
+
+            fig.update_layout(height=240, title="Phase 4 GARCH Risk Snapshot")
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.06,
+                subplot_titles=(
+                    "Phase 3 mean residuals",
+                    "Phase 4 conditional volatility estimated by GARCH(1,1)",
+                ),
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_train_df["date"],
+                    y=phase4_train_df["mean_residual"],
+                    mode="lines",
+                    line=dict(color="#0F172A", width=1.0),
+                    name="Mean residual",
+                ),
+                row=1,
+                col=1,
+            )
+            fig.add_hline(y=0, line_dash="dot", line_color="#64748B", row=1, col=1)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_train_df["date"],
+                    y=phase4_train_df["conditional_volatility"],
+                    mode="lines",
+                    line=dict(color="#DC2626", width=1.5),
+                    name="Conditional volatility",
+                ),
+                row=2,
+                col=1,
+            )
+
+            fig.update_yaxes(title_text="Residual", row=1, col=1)
+            fig.update_yaxes(title_text="Volatility", row=2, col=1)
+            fig.update_layout(height=800, title="Why We Need GARCH: Shocks Cluster In Time")
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_test_df["date"],
+                    y=phase4_test_df["forecast_volatility"],
+                    mode="lines",
+                    line=dict(color="#DC2626", width=1.6),
+                    name="Forecast volatility",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_test_df["date"],
+                    y=np.sqrt(phase4_test_df["realized_sq_error"]),
+                    mode="lines",
+                    line=dict(color="#2563EB", width=1.0),
+                    name="Realized absolute error proxy",
+                )
+            )
+            fig.update_layout(
+                title="Out-of-Sample Volatility Forecast vs Realized Absolute Error Proxy",
+                height=540,
+                yaxis_title="Volatility scale",
+                xaxis_title="Date",
+            )
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = px.bar(
+                phase4_param_df,
+                x="parameter",
+                y="estimate",
+                color="parameter",
+                title="Estimated GARCH(1,1)-t Parameters",
+                labels={"estimate": "Estimate", "parameter": "Parameter"},
+            )
+            for _, row in phase4_param_df.iterrows():
+                fig.add_shape(
+                    type="line",
+                    x0=row["parameter"],
+                    x1=row["parameter"],
+                    y0=row["ci_lower"],
+                    y1=row["ci_upper"],
+                    line=dict(color="#0F172A", width=2),
+                )
+            fig.update_layout(height=500, showlegend=False)
+            fig.show()
+
+            phase4_param_df
+            """
+        ),
+        code_cell(
+            """
+            ljung_phase4 = phase4_diag_df[phase4_diag_df["test"].str.contains("ljung_box")].copy()
+            ljung_phase4["series_type"] = np.where(
+                ljung_phase4["test"].str.contains("squared"),
+                "Squared standardized residual",
+                "Standardized residual",
+            )
+
+            fig = make_subplots(
+                rows=2,
+                cols=2,
+                subplot_titles=(
+                    "Standardized residuals through time",
+                    "Standardized residual distribution",
+                    "Q-Q plot against fitted Student-t reference",
+                    "Ljung-Box p-values after GARCH filtering",
+                ),
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_train_df["date"],
+                    y=phase4_train_df["standardized_residual"],
+                    mode="lines",
+                    line=dict(color="#2563EB", width=1.0),
+                    name="Standardized residual",
+                ),
+                row=1,
+                col=1,
+            )
+            fig.add_hline(y=0, line_dash="dot", line_color="#64748B", row=1, col=1)
+
+            fig.add_trace(
+                go.Histogram(
+                    x=phase4_train_df["standardized_residual"],
+                    nbinsx=60,
+                    marker_color="#F97316",
+                    name="Standardized residual histogram",
+                ),
+                row=1,
+                col=2,
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_qq_df["theoretical_quantile_t"],
+                    y=phase4_qq_df["sample_quantile"],
+                    mode="markers",
+                    marker=dict(size=5, color="#0EA5E9", opacity=0.6),
+                    name="Q-Q points",
+                ),
+                row=2,
+                col=1,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=phase4_qq_df["theoretical_quantile_t"],
+                    y=phase4_qq_df["reference_line"],
+                    mode="lines",
+                    line=dict(color="#DC2626", width=1.5),
+                    name="Reference line",
+                ),
+                row=2,
+                col=1,
+            )
+
+            for series_type, color in [
+                ("Standardized residual", "#2563EB"),
+                ("Squared standardized residual", "#10B981"),
+            ]:
+                subset = ljung_phase4[ljung_phase4["series_type"] == series_type]
+                fig.add_trace(
+                    go.Bar(
+                        x=subset["lag"],
+                        y=subset["p_value"],
+                        name=series_type,
+                        marker_color=color,
+                    ),
+                    row=2,
+                    col=2,
+                )
+            fig.add_hline(y=0.05, line_dash="dash", line_color="#DC2626", row=2, col=2)
+
+            fig.update_xaxes(title_text="Date", row=1, col=1)
+            fig.update_xaxes(title_text="Standardized residual", row=1, col=2)
+            fig.update_xaxes(title_text="Theoretical t quantile", row=2, col=1)
+            fig.update_xaxes(title_text="Lag", row=2, col=2)
+            fig.update_yaxes(title_text="Std. residual", row=1, col=1)
+            fig.update_yaxes(title_text="Count", row=1, col=2)
+            fig.update_yaxes(title_text="Sample quantile", row=2, col=1)
+            fig.update_yaxes(title_text="p-value", row=2, col=2)
+            fig.update_layout(height=920, title="Diagnostic Check After GARCH Filtering")
+            fig.show()
+
+            phase4_diag_df
+            """
+        ),
+        markdown_cell(
+            """
+            ## What The Phase 4 Visuals Are Saying
+
+            The most important GARCH lesson is this:
+
+            - the model does **not** try to predict the sign of the residual,
+            - it tries to predict the **scale of uncertainty** around the mean model.
+
+            In the current results:
+
+            - persistence is very high, around `0.9916`,
+            - which means volatility shocks decay slowly,
+            - the half-life is roughly `82` trading periods,
+            - and the Student-t degrees of freedom parameter is around `5.89`, which is consistent with heavy tails.
+
+            The diagnostic improvement is also specific:
+
+            - the squared standardized residual tests improve strongly,
+            - which means the volatility clustering is being captured much better,
+            - but the standardized residuals themselves still show some serial structure,
+            - and the residual distribution is still not perfectly Gaussian.
+
+            A clean classroom explanation is:
+
+            "The GARCH model materially improves the variance dynamics. It removes most of the autocorrelation from squared residuals, which means it is capturing volatility clustering well. But it does not solve every remaining modeling issue, so the process is still not fully iid after filtering."
+            """
+        ),
+        markdown_cell(
+            """
+            ## 7. Deep Learning Benchmark: PatchTST-Style Forecasting
+
+            Phase 5 returns to the **mean forecasting** problem, but now with a nonlinear sequence model.
+
+            The idea behind a PatchTST-style architecture is:
+
+            - instead of feeding one day at a time into the transformer, we group the history into short temporal patches,
+            - each patch becomes a token,
+            - self-attention then learns which historical fragments are most informative for the next-step forecast.
+
+            In this project, the deep model uses:
+
+            - a `60`-day lookback window,
+            - patch length `10`,
+            - patch stride `5`,
+            - `33` lagged multivariate features,
+            - and a one-step-ahead NASDAQ log-return target.
+
+            This is a rigorous local benchmark because it can be trained reproducibly inside the repository, unlike a much larger external foundation model that would require downloading pretrained weights.
+            """
+        ),
+        markdown_cell(
+            """
+            ### Phase 5 Glossary
+
+            These are the most important terms to explain clearly in class:
+
+            - **Lookback window**: how many past trading days the model sees before making one forecast. Here it is `60`.
+            - **Patch length**: how many consecutive days are grouped into one token. Here it is `10`.
+            - **Patch stride**: how far the patch window moves each time. Here it is `5`, so patches overlap.
+            - **Token**: the basic unit processed by the transformer. In this notebook, one token is one 10-day time patch.
+            - **Channel**: one feature observed through time, such as NASDAQ return, gold RSI, or oil Bollinger z-score.
+            - **RMSE**: error metric that penalizes large misses more strongly.
+            - **MAE**: average absolute forecast miss.
+            - **Hit Rate**: fraction of days for which the forecast sign matches the realized return sign.
+            - **Forecast/actual correlation**: linear alignment between predictions and realized outcomes.
+
+            For a non-finance audience, a good one-sentence summary is:
+
+            "The deep model looks at the last 60 trading days, compresses that history into overlapping 10-day chunks, and uses attention to decide which recent patterns matter most for tomorrow's NASDAQ return."
+            """
+        ),
+        markdown_cell(
+            """
+            ### What The Code Is Doing
+
+            The implemented model is split into two layers:
+
+            - `PatchTSTForecaster`: the neural network itself
+            - `PatchTSTDeepForecaster`: the data-preparation, training, prediction, and evaluation pipeline
+
+            The pipeline logic is:
+
+            1. load the Phase 1 modeling table,
+            2. build a lagged multivariate design matrix,
+            3. standardize inputs using training data only,
+            4. turn the table into rolling 60-day supervised windows,
+            5. train the transformer with early stopping,
+            6. reload the best validation checkpoint,
+            7. forecast the holdout period,
+            8. compare the resulting errors against the classical Phase 3 baseline.
+
+            The network logic is:
+
+            1. reshape each input window into feature-by-time format,
+            2. create overlapping patches with `unfold`,
+            3. embed each patch into a learned latent vector,
+            4. add positional information,
+            5. run the patch sequence through the transformer encoder,
+            6. pool the encoded representation,
+            7. map that representation to one scalar next-day forecast.
+            """
+        ),
+        markdown_cell(
+            """
+            ### Where This Architecture Comes From
+
+            This model was **not invented from scratch**. It is a compact adaptation of the ideas from the PatchTST paper,
+            *A Time Series is Worth 64 Words: Long-term Forecasting with Transformers*, and its official repository.
+
+            The original PatchTST design highlights two main ideas:
+
+            - **patching** the time axis so each token is a short subseries rather than one raw point,
+            - **channel-independence** so channels share embedding and transformer weights.
+
+            Our implementation keeps those core ideas:
+
+            - overlapping temporal patches,
+            - shared patch embedding across channels,
+            - shared transformer encoder across channels,
+            - and final aggregation into one supervised forecast.
+
+            But it is also a deliberate simplification:
+
+            - it is a CPU-friendly course-project adaptation,
+            - it is built for one-step-ahead NASDAQ return forecasting,
+            - and it uses our financial feature set rather than reproducing the full official benchmark stack.
+
+            So the rigorous description is:
+
+            "This is a PatchTST-style architectural adaptation inspired by the paper and official implementation, not a line-by-line reproduction of the authors' original experiment code."
+            """
+        ),
+        code_cell(
+            """
+            phase5_metrics = phase5_meta["evaluation_metrics"]
+            phase5_benchmark = phase5_meta.get("phase3_benchmark", {})
+            phase5_indicators = [
+                ("PatchTST RMSE", round(phase5_metrics["rmse"], 5)),
+                ("PatchTST MAE", round(phase5_metrics["mae"], 5)),
+                ("PatchTST Hit Rate", round(phase5_metrics["directional_accuracy"], 4)),
+                ("Correlation", round(phase5_metrics["forecast_actual_correlation"], 4)),
+                ("Best Epoch", int(phase5_meta["best_epoch"])),
+                ("Features", int(phase5_meta["feature_count"])),
+            ]
+
+            fig = make_subplots(
+                rows=1,
+                cols=len(phase5_indicators),
+                specs=[[{"type": "indicator"} for _ in phase5_indicators]],
+            )
+
+            for index, (label, value) in enumerate(phase5_indicators, start=1):
+                fig.add_trace(
+                    go.Indicator(
+                        mode="number",
+                        value=value,
+                        title={"text": label},
+                        number={"font": {"size": 30}},
+                    ),
+                    row=1,
+                    col=index,
+                )
+
+            fig.update_layout(height=240, title="Phase 5 Deep Forecasting Snapshot")
+            fig.show()
+
+            comparison_df = pd.DataFrame(
+                {
+                    "metric": ["RMSE", "MAE", "Hit Rate"],
+                    "Phase 3 SARIMAX": [
+                        phase5_benchmark.get("rmse", np.nan),
+                        phase5_benchmark.get("mae", np.nan),
+                        phase5_benchmark.get("directional_accuracy", np.nan),
+                    ],
+                    "Phase 5 PatchTST": [
+                        phase5_metrics["rmse"],
+                        phase5_metrics["mae"],
+                        phase5_metrics["directional_accuracy"],
+                    ],
+                }
+            )
+            comparison_df
+            """
+        ),
+        code_cell(
+            """
+            comparison_long = comparison_df.melt(id_vars="metric", var_name="model", value_name="value")
+            fig = px.bar(
+                comparison_long,
+                x="metric",
+                y="value",
+                color="model",
+                barmode="group",
+                title="Phase 3 vs Phase 5 Holdout Metrics",
+                labels={"value": "Metric value", "metric": "Metric", "model": "Model"},
+            )
+            fig.update_layout(height=500)
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=phase5_history_df["epoch"],
+                    y=phase5_history_df["train_rmse"],
+                    mode="lines+markers",
+                    line=dict(color="#2563EB", width=2),
+                    name="Train RMSE",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=phase5_history_df["epoch"],
+                    y=phase5_history_df["validation_rmse"],
+                    mode="lines+markers",
+                    line=dict(color="#DC2626", width=2),
+                    name="Validation RMSE",
+                )
+            )
+            fig.add_vline(
+                x=phase5_meta["best_epoch"],
+                line_dash="dash",
+                line_color="#0F172A",
+                annotation_text="best epoch",
+            )
+            fig.update_layout(
+                title="Training Curve For The PatchTST-Style Model",
+                height=500,
+                xaxis_title="Epoch",
+                yaxis_title="RMSE on scaled target",
+            )
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = make_subplots(
+                rows=2,
+                cols=1,
+                shared_xaxes=True,
+                vertical_spacing=0.08,
+                subplot_titles=(
+                    "Out-of-sample NASDAQ return forecast vs realized return",
+                    "Forecast errors through time",
+                ),
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase5_test_df["date"],
+                    y=phase5_test_df["actual"],
+                    mode="lines",
+                    line=dict(color="#0F172A", width=1.4),
+                    name="Actual return",
+                ),
+                row=1,
+                col=1,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=phase5_test_df["date"],
+                    y=phase5_test_df["forecast"],
+                    mode="lines",
+                    line=dict(color="#2563EB", width=1.6),
+                    name="PatchTST forecast",
+                ),
+                row=1,
+                col=1,
+            )
+
+            fig.add_trace(
+                go.Bar(
+                    x=phase5_test_df["date"],
+                    y=phase5_test_df["forecast_error"],
+                    marker_color=np.where(phase5_test_df["forecast_error"] >= 0, "#10B981", "#DC2626"),
+                    name="Forecast error",
+                ),
+                row=2,
+                col=1,
+            )
+            fig.add_hline(y=0, line_dash="dot", line_color="#64748B", row=2, col=1)
+
+            fig.update_yaxes(title_text="Return", row=1, col=1)
+            fig.update_yaxes(title_text="Error", row=2, col=1)
+            fig.update_layout(height=820, title="Phase 5 Holdout Forecast Path")
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = make_subplots(
+                rows=1,
+                cols=3,
+                subplot_titles=(
+                    "Actual vs forecast scatter",
+                    "Forecast distribution",
+                    "Feature mix by category",
+                ),
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=phase5_test_df["actual"],
+                    y=phase5_test_df["forecast"],
+                    mode="markers",
+                    marker=dict(size=7, color="#2563EB", opacity=0.65),
+                    name="Actual vs forecast",
+                ),
+                row=1,
+                col=1,
+            )
+            line_min = min(phase5_test_df["actual"].min(), phase5_test_df["forecast"].min())
+            line_max = max(phase5_test_df["actual"].max(), phase5_test_df["forecast"].max())
+            fig.add_trace(
+                go.Scatter(
+                    x=[line_min, line_max],
+                    y=[line_min, line_max],
+                    mode="lines",
+                    line=dict(color="#DC2626", dash="dash"),
+                    name="45-degree line",
+                ),
+                row=1,
+                col=1,
+            )
+
+            fig.add_trace(
+                go.Histogram(
+                    x=phase5_test_df["forecast"],
+                    nbinsx=40,
+                    marker_color="#F97316",
+                    name="Forecast distribution",
+                ),
+                row=1,
+                col=2,
+            )
+
+            feature_mix = phase5_feature_schema_df["category"].value_counts().sort_values(ascending=False).reset_index()
+            feature_mix.columns = ["category", "count"]
+            fig.add_trace(
+                go.Bar(
+                    x=feature_mix["category"],
+                    y=feature_mix["count"],
+                    marker_color="#10B981",
+                    name="Feature count",
+                ),
+                row=1,
+                col=3,
+            )
+
+            fig.update_xaxes(title_text="Actual", row=1, col=1)
+            fig.update_xaxes(title_text="Forecast", row=1, col=2)
+            fig.update_xaxes(title_text="Category", row=1, col=3)
+            fig.update_yaxes(title_text="Forecast", row=1, col=1)
+            fig.update_yaxes(title_text="Count", row=1, col=2)
+            fig.update_yaxes(title_text="Features", row=1, col=3)
+            fig.update_layout(height=520, title="What The Deep Model Learned To Use And Predict")
+            fig.show()
+
+            phase5_feature_schema_df.head(12)
+            """
+        ),
+        markdown_cell(
+            """
+            ## What The Phase 5 Visuals Are Saying
+
+            The deep model improves the classical benchmark, but only modestly:
+
+            - test RMSE improves from about `0.01103` in Phase 3 to about `0.01090`,
+            - test MAE improves from about `0.00824` to about `0.00810`,
+            - and hit rate improves from about `0.528` to about `0.571`.
+
+            That is a real improvement, but it must be interpreted honestly.
+
+            The model is still forecasting very small daily returns, and the forecast distribution remains compressed around zero.
+            This is typical in high-noise financial return forecasting: even a useful model often explains only a small fraction of the realized next-day move.
+
+            Two points matter most for interpretation:
+
+            - the training curve shows that validation performance stops improving much earlier than training performance, so early stopping is important,
+            - and the actual-vs-forecast scatter shows weak but nonzero alignment rather than a tight line, which means the model is extracting some structure but not producing large-confidence return calls.
+
+            A clean classroom explanation is:
+
+            "The deep model is better than the classical linear benchmark on the holdout sample, but the improvement is incremental rather than dramatic. That is realistic for daily financial return prediction, where the signal-to-noise ratio is low. The result supports using modern sequence models, but it also shows that no model here should be presented as if it had strong deterministic forecasting power."
+            """
+        ),
+        markdown_cell(
+            """
+            ### Why Phase 6 Is Still Necessary
+
+            It is true that by the end of Phase 5 we already have:
+
+            - a classical benchmark,
+            - a volatility model,
+            - a deep-learning benchmark,
+            - and a fixed holdout comparison.
+
+            But that is **not** the same thing as a full financial evaluation.
+
+            A single train/test split can be misleading because performance may depend heavily on one specific market regime.
+            Phase 6 therefore asks a stricter question:
+
+            "If we repeated the forecast-and-trade exercise many times through history using only information available at each date, would the strategy remain useful after costs and frictions?"
+
+            That is the purpose of rolling-window backtesting. It turns a single benchmark comparison into a proper historical simulation.
+            """
+        ),
+        markdown_cell(
+            """
+            ## 8. Rolling Backtesting And Market Frictions
+
+            Phase 6 is where forecasting becomes a financial evaluation rather than only a statistical one.
+
+            The rolling backtest used here does the following:
+
+            1. define a training window, validation window, and test window,
+            2. retrain the model on each fold,
+            3. generate out-of-sample forecasts for the next historical block,
+            4. convert forecasts into trading positions using the sign of the forecast,
+            5. subtract slippage and commissions when the position changes,
+            6. compute both forecast metrics and trading-performance metrics.
+
+            This matters because a model can improve RMSE while still failing to improve realized trading performance.
+            """
+        ),
+        code_cell(
+            """
+            def get_summary_metric(model: str, metric: str) -> float:
+                value = phase6_summary_df.loc[
+                    (phase6_summary_df["model"] == model) & (phase6_summary_df["metric"] == metric),
+                    "value",
+                ]
+                return float(value.iloc[0])
+
+            phase6_snapshot = pd.DataFrame(
+                {
+                    "metric": ["Net Cum. Return", "Sharpe", "Max Drawdown", "Hit Rate"],
+                    "Phase 3 SARIMAX": [
+                        get_summary_metric("phase3_sarimax", "net_cumulative_return"),
+                        get_summary_metric("phase3_sarimax", "annualized_sharpe_ratio"),
+                        get_summary_metric("phase3_sarimax", "maximum_drawdown"),
+                        get_summary_metric("phase3_sarimax", "directional_accuracy"),
+                    ],
+                    "Phase 5 PatchTST": [
+                        get_summary_metric("phase5_patchtst", "net_cumulative_return"),
+                        get_summary_metric("phase5_patchtst", "annualized_sharpe_ratio"),
+                        get_summary_metric("phase5_patchtst", "maximum_drawdown"),
+                        get_summary_metric("phase5_patchtst", "directional_accuracy"),
+                    ],
+                }
+            )
+            phase6_snapshot
+            """
+        ),
+        code_cell(
+            """
+            phase6_snapshot_long = phase6_snapshot.melt(id_vars="metric", var_name="model", value_name="value")
+            fig = px.bar(
+                phase6_snapshot_long,
+                x="metric",
+                y="value",
+                color="model",
+                barmode="group",
+                title="Phase 6 Backtest Summary: Forecasting vs Trading KPIs",
+                labels={"value": "Metric value", "metric": "Metric", "model": "Model"},
+            )
+            fig.update_layout(height=520)
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fig = go.Figure()
+            for model_name, label, color in [
+                ("phase3_sarimax", "Phase 3 SARIMAX", "#0F172A"),
+                ("phase5_patchtst", "Phase 5 PatchTST", "#2563EB"),
+            ]:
+                subset = phase6_strategy_df[phase6_strategy_df["model"] == model_name]
+                fig.add_trace(
+                    go.Scatter(
+                        x=subset["date"],
+                        y=subset["cumulative_net"],
+                        mode="lines",
+                        line=dict(width=2, color=color),
+                        name=label,
+                    )
+                )
+            fig.update_layout(
+                title="Cumulative Net Wealth After Slippage And Commissions",
+                height=560,
+                xaxis_title="Date",
+                yaxis_title="Cumulative wealth index",
+            )
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            fold_plot = phase6_fold_metrics_df.copy()
+            fig = make_subplots(
+                rows=1,
+                cols=2,
+                subplot_titles=("Fold-by-fold RMSE", "Fold-by-fold directional accuracy"),
+            )
+
+            for model_name, label, color in [
+                ("phase3_sarimax", "Phase 3 SARIMAX", "#0F172A"),
+                ("phase5_patchtst", "Phase 5 PatchTST", "#2563EB"),
+            ]:
+                subset = fold_plot[fold_plot["model"] == model_name]
+                fig.add_trace(
+                    go.Scatter(
+                        x=subset["fold_id"],
+                        y=subset["rmse"],
+                        mode="lines+markers",
+                        line=dict(color=color, width=2),
+                        name=label,
+                        legendgroup=label,
+                    ),
+                    row=1,
+                    col=1,
+                )
+                fig.add_trace(
+                    go.Scatter(
+                        x=subset["fold_id"],
+                        y=subset["directional_accuracy"],
+                        mode="lines+markers",
+                        line=dict(color=color, width=2),
+                        name=label,
+                        legendgroup=label,
+                        showlegend=False,
+                    ),
+                    row=1,
+                    col=2,
+                )
+
+            fig.update_xaxes(title_text="Fold", row=1, col=1)
+            fig.update_xaxes(title_text="Fold", row=1, col=2)
+            fig.update_yaxes(title_text="RMSE", row=1, col=1)
+            fig.update_yaxes(title_text="Directional accuracy", row=1, col=2)
+            fig.update_layout(height=480, title="Rolling-Fold Prediction Stability")
+            fig.show()
+            """
+        ),
+        code_cell(
+            """
+            turnover_plot = phase6_strategy_df.groupby("model", as_index=False)["turnover"].mean()
+            turnover_plot["label"] = turnover_plot["model"].map(
+                {"phase3_sarimax": "Phase 3 SARIMAX", "phase5_patchtst": "Phase 5 PatchTST"}
+            )
+
+            fig = make_subplots(
+                rows=1,
+                cols=2,
+                subplot_titles=("Average turnover", "Distribution of daily net returns"),
+            )
+            fig.add_trace(
+                go.Bar(
+                    x=turnover_plot["label"],
+                    y=turnover_plot["turnover"],
+                    marker_color=["#0F172A", "#2563EB"],
+                    name="Average turnover",
+                ),
+                row=1,
+                col=1,
+            )
+            for model_name, label, color in [
+                ("phase3_sarimax", "Phase 3 SARIMAX", "#0F172A"),
+                ("phase5_patchtst", "Phase 5 PatchTST", "#2563EB"),
+            ]:
+                subset = phase6_strategy_df[phase6_strategy_df["model"] == model_name]
+                fig.add_trace(
+                    go.Histogram(
+                        x=subset["net_return"],
+                        opacity=0.60,
+                        nbinsx=70,
+                        marker_color=color,
+                        name=label,
+                    ),
+                    row=1,
+                    col=2,
+                )
+
+            fig.update_xaxes(title_text="Model", row=1, col=1)
+            fig.update_xaxes(title_text="Daily net return", row=1, col=2)
+            fig.update_yaxes(title_text="Turnover", row=1, col=1)
+            fig.update_yaxes(title_text="Count", row=1, col=2)
+            fig.update_layout(height=520, barmode="overlay", title="Trading Friction And Return Distribution")
+            fig.show()
+            """
+        ),
+        markdown_cell(
+            """
+            ## What The Phase 6 Visuals Are Saying
+
+            Phase 6 delivers the most important practical lesson of the whole project:
+
+            - better forecast metrics do **not automatically** imply better trading performance.
+
+            In the saved backtest:
+
+            - PatchTST is slightly better on RMSE, MAE, and hit rate,
+            - but SARIMAX ends with a slightly higher net cumulative return and Sharpe ratio,
+            - while PatchTST suffers a slightly deeper maximum drawdown.
+
+            That is a very realistic financial result.
+
+            It means the deep model is statistically competitive, but its trading signal is still not economically dominant once repeated walk-forward evaluation and market frictions are introduced.
+
+            A clean classroom explanation is:
+
+            "Single-split forecasting results suggested that the deep model was stronger. Rolling backtesting shows a more nuanced picture: the deep model improves some prediction metrics, but those gains do not translate cleanly into superior historical trading performance after costs. This is why financial machine learning must evaluate both predictive accuracy and economic utility."
             """
         ),
     ]

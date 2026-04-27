@@ -1,0 +1,34 @@
+feature,category,source_column,description
+sp500_log_return,returns,sp500 log_return,Daily continuously compounded return.
+sp500_rsi_14,momentum,sp500 rsi_14,14-day relative strength index.
+sp500_macd_hist,trend_momentum,sp500 macd_hist,MACD histogram: trend strength after signal subtraction.
+sp500_bb_zscore,relative_price,sp500 bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+nasdaq_log_return,returns,nasdaq log_return,Daily continuously compounded return.
+nasdaq_rsi_14,momentum,nasdaq rsi_14,14-day relative strength index.
+nasdaq_macd_hist,trend_momentum,nasdaq macd_hist,MACD histogram: trend strength after signal subtraction.
+nasdaq_bb_zscore,relative_price,nasdaq bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+silver_log_return,returns,silver log_return,Daily continuously compounded return.
+silver_rsi_14,momentum,silver rsi_14,14-day relative strength index.
+silver_macd_hist,trend_momentum,silver macd_hist,MACD histogram: trend strength after signal subtraction.
+silver_bb_zscore,relative_price,silver bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+oil_log_return,returns,oil log_return,Daily continuously compounded return.
+oil_rsi_14,momentum,oil rsi_14,14-day relative strength index.
+oil_macd_hist,trend_momentum,oil macd_hist,MACD histogram: trend strength after signal subtraction.
+oil_bb_zscore,relative_price,oil bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+platinum_log_return,returns,platinum log_return,Daily continuously compounded return.
+platinum_rsi_14,momentum,platinum rsi_14,14-day relative strength index.
+platinum_macd_hist,trend_momentum,platinum macd_hist,MACD histogram: trend strength after signal subtraction.
+platinum_bb_zscore,relative_price,platinum bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+palladium_log_return,returns,palladium log_return,Daily continuously compounded return.
+palladium_rsi_14,momentum,palladium rsi_14,14-day relative strength index.
+palladium_macd_hist,trend_momentum,palladium macd_hist,MACD histogram: trend strength after signal subtraction.
+palladium_bb_zscore,relative_price,palladium bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+gold_log_return,returns,gold log_return,Daily continuously compounded return.
+gold_rsi_14,momentum,gold rsi_14,14-day relative strength index.
+gold_macd_hist,trend_momentum,gold macd_hist,MACD histogram: trend strength after signal subtraction.
+gold_bb_zscore,relative_price,gold bb_zscore,Distance from rolling Bollinger middle band in standard-deviation units.
+eur_usd_ret_l1,fx_return,eur_usd,Lagged one-day log return of the exchange rate.
+usd_chf_ret_l1,fx_return,usd_chf,Lagged one-day log return of the exchange rate.
+gdp_growth_l1,macro_change,GDP,"Lagged log difference in GDP, used as a low-frequency growth proxy."
+cpi_inflation_l1,macro_change,CPI,"Lagged log difference in CPI, used as an inflation proxy."
+rate_change_l1,macro_change,us_rates_%,Lagged first difference in the policy rate level.

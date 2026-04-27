@@ -20,6 +20,25 @@ from .phase3_classical_baseline import (
     PhaseThreePipeline,
     SarimaxBaselineBuilder,
 )
+from .phase4_volatility_modeling import (
+    GarchVolatilityModeler,
+    PhaseFourArtifacts,
+    PhaseFourConfig,
+    PhaseFourPipeline,
+)
+from .phase5_deep_forecasting import (
+    PatchTSTDeepForecaster,
+    PatchTSTForecaster,
+    PhaseFiveArtifacts,
+    PhaseFiveConfig,
+    PhaseFivePipeline,
+)
+from .phase6_backtesting import (
+    PhaseSixArtifacts,
+    PhaseSixConfig,
+    PhaseSixPipeline,
+    RollingWindowBacktester,
+)
 
 __all__ = [
     "FinancialDatasetLoader",
@@ -32,6 +51,19 @@ __all__ = [
     "PhaseThreeArtifacts",
     "PhaseThreeConfig",
     "PhaseThreePipeline",
+    "PhaseFourArtifacts",
+    "PhaseFourConfig",
+    "PhaseFourPipeline",
+    "PhaseFiveArtifacts",
+    "PhaseFiveConfig",
+    "PhaseFivePipeline",
+    "PhaseSixArtifacts",
+    "PhaseSixConfig",
+    "PhaseSixPipeline",
+    "PatchTSTDeepForecaster",
+    "PatchTSTForecaster",
+    "RollingWindowBacktester",
+    "GarchVolatilityModeler",
     "SarimaxBaselineBuilder",
     "STLDecomposer",
     "StationarityAnalyzer",

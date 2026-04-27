@@ -1,0 +1,201 @@
+{
+  "num_folds": 5,
+  "train_window": 2000,
+  "validation_window": 252,
+  "test_window": 252,
+  "step_size": 252,
+  "lookback_window": 60,
+  "commission_bps": 2.0,
+  "slippage_bps": 3.0,
+  "phase5_max_epochs": 10,
+  "fold_metrics_preview": [
+    {
+      "model": "phase3_sarimax",
+      "fold_id": 1,
+      "order": [
+        0,
+        0,
+        0
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rmse": 0.02061095406849766,
+      "mae": 0.012567992803255327,
+      "directional_accuracy": 0.6150793650793651,
+      "mean_forecast_error": -0.00010881070949495727
+    },
+    {
+      "model": "phase5_patchtst",
+      "fold_id": 1,
+      "best_epoch": 4,
+      "train_windows": 1940,
+      "validation_windows": 252,
+      "history_tail": [
+        {
+          "epoch": 6,
+          "train_loss": 0.9176261396177353,
+          "validation_loss": 1.4624683111906052,
+          "train_rmse": 0.9579280451149425,
+          "validation_rmse": 1.209325560463602
+        },
+        {
+          "epoch": 7,
+          "train_loss": 0.9287097953980968,
+          "validation_loss": 1.4677782356739044,
+          "train_rmse": 0.9636959040060805,
+          "validation_rmse": 1.2115189786684748
+        },
+        {
+          "epoch": 8,
+          "train_loss": 0.8968768139039317,
+          "validation_loss": 1.4630414843559265,
+          "train_rmse": 0.9470358039186965,
+          "validation_rmse": 1.2095625177542195
+        }
+      ],
+      "rmse": 0.02070443332195282,
+      "mae": 0.012570428662002087,
+      "directional_accuracy": 0.5833333333333334,
+      "mean_forecast_error": 0.00033788365544751287
+    },
+    {
+      "model": "phase3_sarimax",
+      "fold_id": 2,
+      "order": [
+        0,
+        0,
+        0
+      ],
+      "seasonal_order": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "rmse": 0.01461663159159435,
+      "mae": 0.011048708455866906,
+      "directional_accuracy": 0.5634920634920635,
+      "mean_forecast_error": 0.0006417799957334149
+    },
+    {
+      "model": "phase5_patchtst",
+      "fold_id": 2,
+      "best_epoch": 1,
+      "train_windows": 1940,
+      "validation_windows": 252,
+      "history_tail": [
+        {
+          "epoch": 3,
+          "train_loss": 0.9970297236596385,
+          "validation_loss": 3.797114282846451,
+          "train_rmse": 0.9985137573712435,
+          "validation_rmse": 1.9486185575546722
+        },
+        {
+          "epoch": 4,
+          "train_loss": 0.9829808089040941,
+          "validation_loss": 3.798557326197624,
+          "train_rmse": 0.9914538864234151,
+          "validation_rmse": 1.9489887958112084
+        },
+        {
+          "epoch": 5,
+          "train_loss": 0.9863247275352478,
+          "validation_loss": 3.8043330162763596,
+          "train_rmse": 0.9931388259126958,
+          "validation_rmse": 1.9504699475450422
+        }
+      ],
+      "rmse": 0.014653224498033524,
+      "mae": 0.01118470635265112,
+      "directional_accuracy": 0.5,
+      "mean_forecast_error": 0.001297401380725205
+    }
+  ],
+  "strategy_summary": [
+    {
+      "model": "phase3_sarimax",
+      "metric": "rmse",
+      "value": 0.01612188783816448
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "mae",
+      "value": 0.011521932312067744
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "directional_accuracy",
+      "value": 0.5182539682539683
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "average_turnover",
+      "value": 0.6865079365079365
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "gross_cumulative_return",
+      "value": 1.5564340709742277
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "net_cumulative_return",
+      "value": 0.6581187321005133
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "annualized_sharpe_ratio",
+      "value": 0.5250521981311359
+    },
+    {
+      "model": "phase3_sarimax",
+      "metric": "maximum_drawdown",
+      "value": -0.4042053424187485
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "rmse",
+      "value": 0.015966770953544228
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "mae",
+      "value": 0.011231024199491551
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "directional_accuracy",
+      "value": 0.5349206349206349
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "average_turnover",
+      "value": 0.2261904761904762
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "gross_cumulative_return",
+      "value": 0.8393849693661664
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "net_cumulative_return",
+      "value": 0.5947179069274835
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "annualized_sharpe_ratio",
+      "value": 0.49551592895206065
+    },
+    {
+      "model": "phase5_patchtst",
+      "metric": "maximum_drawdown",
+      "value": -0.4258964671352059
+    }
+  ]
+}

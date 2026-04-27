@@ -1,0 +1,17 @@
+model,metric,value
+phase3_sarimax,rmse,0.01612188783816448
+phase3_sarimax,mae,0.011521932312067744
+phase3_sarimax,directional_accuracy,0.5182539682539683
+phase3_sarimax,average_turnover,0.6865079365079365
+phase3_sarimax,gross_cumulative_return,1.5564340709742277
+phase3_sarimax,net_cumulative_return,0.6581187321005133
+phase3_sarimax,annualized_sharpe_ratio,0.5250521981311359
+phase3_sarimax,maximum_drawdown,-0.4042053424187485
+phase5_patchtst,rmse,0.015966770953544228
+phase5_patchtst,mae,0.011231024199491551
+phase5_patchtst,directional_accuracy,0.5349206349206349
+phase5_patchtst,average_turnover,0.2261904761904762
+phase5_patchtst,gross_cumulative_return,0.8393849693661664
+phase5_patchtst,net_cumulative_return,0.5947179069274835
+phase5_patchtst,annualized_sharpe_ratio,0.49551592895206065
+phase5_patchtst,maximum_drawdown,-0.4258964671352059
