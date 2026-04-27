@@ -92,6 +92,20 @@ def build_notebook() -> nbf.NotebookNode:
             - and Phase 6 checks whether forecasting gains survive repeated historical evaluation once trading frictions are included.
             """
         ),
+        markdown_cell(
+            """
+            ## Model Summary Table
+
+            | Phase | Model / Procedure | Exact Specification Used | Main Role |
+            |---|---|---|---|
+            | Phase 3 | Classical benchmark | `SARIMAX` on `nasdaq log_return` with order `(0,0,0)`, seasonal order `(0,0,0,0)`, constant term, and 8 lagged exogenous regressors | Mean forecasting baseline |
+            | Phase 4 | Volatility benchmark | `GARCH(1,1)` with Student-t innovations on Phase 3 residuals | Conditional variance / risk forecasting |
+            | Phase 5 | Deep benchmark | PatchTST-style transformer with 60-day lookback, 10-day patches, 5-day stride, and 33 lagged features | Nonlinear sequence forecasting benchmark |
+            | Phase 6 | Financial evaluation | 5-fold rolling walk-forward backtest with retraining, sign-based trading, 2 bps commissions, and 3 bps slippage | Economic usefulness under realistic frictions |
+
+            This table is the shortest correct way to explain the modeling stack before going into details.
+            """
+        ),
         code_cell(
             """
             import json
@@ -835,6 +849,13 @@ def build_notebook() -> nbf.NotebookNode:
             - the exogenous block uses lagged market, FX, and macro-change variables,
             - `auto_arima` chooses the order with AIC,
             - and the selected structure is then refit as a SARIMAX model for diagnostics and forecasting.
+
+            The explicit answer to "Are we using ARIMA or SARIMAX?" is:
+
+            - we are using **SARIMAX** as the actual benchmark model,
+            - while `auto_arima` is only the **order-selection tool**.
+
+            Since exogenous regressors are included, the correct model name is `SARIMAX`, not plain `ARIMA`.
             """
         ),
         code_cell(
@@ -872,10 +893,13 @@ def build_notebook() -> nbf.NotebookNode:
 
             pd.DataFrame(
                 {
-                    "item": ["ARIMA order", "Seasonal order", "Test window"],
+                    "item": ["Model class", "ARIMA order", "Seasonal order", "Trend", "Number of exogenous variables", "Test window"],
                     "value": [
+                        "SARIMAX",
                         tuple(phase3_meta["order"]),
                         tuple(phase3_meta["seasonal_order"]),
+                        phase3_meta["trend"],
+                        len(phase3_meta["exogenous_columns"]),
                         f"{phase3_meta['test_start']} to {phase3_meta['test_end']}",
                     ],
                 }

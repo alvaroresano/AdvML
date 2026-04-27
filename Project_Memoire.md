@@ -137,6 +137,25 @@ Phase 3 has now been implemented in:
 
 The generated outputs are stored in `Assignment1/outputs/phase3/`.
 
+### Explicit statement of the benchmark model
+
+The benchmark model used in Phase 3 is **SARIMAX**, not plain ARIMA.
+
+More precisely:
+
+- `pmdarima.auto_arima` is used only to **search over candidate ARIMA orders** with AIC,
+- the chosen order is then **refit as a `statsmodels` SARIMAX model**,
+- and all reported forecasts, coefficients, residuals, and diagnostics come from that fitted SARIMAX model.
+
+So the correct description is:
+
+"The classical benchmark is a SARIMAX model whose ARIMA order was selected by `auto_arima`."
+
+That means:
+
+- `auto_arima` is the **selection procedure**,
+- `SARIMAX` is the **actual fitted benchmark model**.
+
 ### Why ARIMA and SARIMAX are used as a baseline
 
 Before moving to volatility models and deep learning, a serious time-series project should establish whether a simpler linear model already explains most of the predictable structure. ARIMA-class models are valuable because they are:
@@ -157,11 +176,11 @@ An ARIMA model is built from three pieces:
 
 In compact notation:
 
-\[
+$$[
 \phi(B)(1-B)^d y_t = c + \theta(B)\varepsilon_t
-\]
+]$$
 
-where \(B\) is the lag operator, \(\phi(B)\) is the autoregressive polynomial, and \(\theta(B)\) is the moving-average polynomial.
+where $$(B)$$ is the lag operator, $$(\phi(B))$$ is the autoregressive polynomial, and $$(\theta(B))$$ is the moving-average polynomial.
 
 For financial returns, differencing is often unnecessary because returns are already much closer to stationary than price levels. That expectation was already supported by the ADF results from Phase 1.
 
@@ -174,9 +193,9 @@ SARIMAX extends ARIMA by allowing:
 
 Its general idea is:
 
-\[
+$$[
 y_t = c + \beta^\top x_t + \text{ARMA dynamics} + \varepsilon_t.
-\]
+]$$
 
 In this project, the exogenous block is important because the target asset may react not only to its own recent dynamics, but also to:
 
@@ -205,15 +224,40 @@ This is a much better design than using contemporaneous same-day features to pre
 
 AIC, the Akaike Information Criterion, is defined as
 
-\[
+$$[
 AIC = 2k - 2\log L
-\]
+]$$
 
-where \(k\) is the number of estimated parameters and \(L\) is the maximized likelihood.
+where $$(k)$$º is the number of estimated parameters and $$(L)$$ is the maximized likelihood.
 
 The idea is to reward goodness of fit while penalizing unnecessary complexity. A model with more parameters can fit the training data better almost by construction, so AIC helps prevent choosing an over-parameterized specification.
 
 In this project, `pmdarima.auto_arima` searches candidate ARIMA orders and selects the one with the best AIC. The chosen order is then refit using `statsmodels` SARIMAX so that full diagnostics and forecasting outputs can be produced cleanly.
+
+### Exact benchmark specification used in Phase 3
+
+The fitted benchmark in Phase 3 is:
+
+- model class: `SARIMAX`
+- target: `nasdaq log_return`
+- non-seasonal order: `(0, 0, 0)`
+- seasonal order: `(0, 0, 0, 0)`
+- trend: constant term, `trend='c'`
+- exogenous regressors:
+  - `sp500_ret_l1`
+  - `gold_ret_l1`
+  - `oil_ret_l1`
+  - `eur_usd_ret_l1`
+  - `usd_chf_ret_l1`
+  - `gdp_growth_l1`
+  - `cpi_inflation_l1`
+  - `rate_change_l1`
+
+These exogenous variables are standardized on the training sample before fitting.
+
+So the benchmark is best described as:
+
+"a non-seasonal SARIMAX return model with an intercept and lagged exogenous predictors."
 
 ### Why the model is non-seasonal
 
@@ -293,6 +337,10 @@ What it means here is narrower and more precise:
 the data does not justify adding extra autoregressive or moving-average terms to the conditional **mean** equation.
 
 So the fitted mean model is essentially a regression-style return model with exogenous predictors and an intercept. This is a valid and informative benchmark because it tells us that the predictable structure in the mean is limited.
+
+Another precise way to say it is:
+
+"The model belongs to the ARIMA family, but because exogenous regressors are included, the implemented benchmark is SARIMAX. Since the selected ARIMA order is `(0,0,0)`, the final fitted mean equation behaves more like a linear regression on lagged exogenous variables plus a constant than like a richer autoregressive or moving-average return model."
 
 ### Why coefficient interpretation must be done carefully
 
@@ -450,23 +498,23 @@ An analogy that works well in class is:
 
 ### The GARCH(1,1) model
 
-Let \(\varepsilon_t\) be the residual from the Phase 3 mean model. A GARCH(1,1) model writes the conditional variance as
+Let $$(\varepsilon_t)$$ be the residual from the Phase 3 mean model. A GARCH(1,1) model writes the conditional variance as
 
-\[
+$$[
 \sigma_t^2 = \omega + \alpha \varepsilon_{t-1}^2 + \beta \sigma_{t-1}^2.
-\]
+]$$
 
 Each term has a clear interpretation:
 
-- \(\omega\): the long-run variance floor
-- \(\alpha\): how strongly new shocks move current variance
-- \(\beta\): how persistent variance is over time
+- $$(\omega)$$: the long-run variance floor
+- $$(\alpha)$$: how strongly new shocks move current variance
+- $$(\beta)$$: how persistent variance is over time
 
-If \(\alpha\) is large, volatility reacts strongly to new information. If \(\beta\) is large, volatility decays slowly after a shock. The quantity
+If $$(\alpha)$$ is large, volatility reacts strongly to new information. If $$(\beta)$$ is large, volatility decays slowly after a shock. The quantity
 
-\[
+$$[
 \alpha + \beta
-\]
+]$$
 
 is called **persistence**. When this sum is close to 1, volatility is highly persistent.
 
@@ -2200,6 +2248,15 @@ The implementation will move from notebook-only analysis to a modular pipeline w
 - and backtesting / evaluation.
 
 Each module will expose reusable classes or functions so that experiments remain reproducible and easy to compare.
+
+## Model Summary Table
+
+| Phase | Model / Procedure | Exact Specification Used | Purpose In The Project | Key Reason It Was Chosen |
+|---|---|---|---|---|
+| Phase 3 | Classical mean benchmark | `SARIMAX` on `nasdaq log_return` with order `(0,0,0)`, seasonal order `(0,0,0,0)`, constant term, and 8 lagged exogenous regressors | Forecast the conditional mean of returns and establish a disciplined linear benchmark | Interpretable, statistically grounded, and necessary as a baseline before claiming any value from more complex models |
+| Phase 4 | Volatility benchmark | `GARCH(1,1)` with Student-t innovations on Phase 3 residuals | Forecast conditional variance / risk rather than direction | Financial returns exhibit volatility clustering and heavy tails; GARCH is the standard classical risk model |
+| Phase 5 | Deep-learning benchmark | PatchTST-style transformer with 60-day lookback, 10-day patches, 5-day stride, 33 lagged multivariate features, and one-step-ahead NASDAQ return target | Test whether nonlinear temporal and cross-series structure improves forecasting beyond the linear benchmark | Inspired by the PatchTST paper and official repo, but adapted for local, explainable, reproducible execution |
+| Phase 6 | Financial evaluation | 5-fold rolling walk-forward backtest with retraining, sign-based trading rule, 2 bps commissions, and 3 bps slippage | Evaluate whether forecasting gains translate into robust economic performance | Forecast accuracy alone is not enough in finance; models must be tested across regimes and under market frictions |
 
 ## Current Project State
 
