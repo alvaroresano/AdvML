@@ -1,0 +1,168 @@
+{
+  "target_column": "nasdaq log_return",
+  "architecture": "PatchTST-style transformer encoder",
+  "feature_count": 33,
+  "lookback_window": 60,
+  "patch_length": 10,
+  "patch_stride": 5,
+  "num_patches": 11,
+  "d_model": 32,
+  "num_heads": 4,
+  "num_layers": 2,
+  "dropout": 0.1,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "batch_size": 64,
+  "best_epoch": 9,
+  "max_epochs": 40,
+  "train_rows": 3603,
+  "train_windows": 3039,
+  "validation_windows": 252,
+  "test_windows": 252,
+  "train_start": "2010-05-03",
+  "train_end": "2022-10-11",
+  "validation_start": "2022-10-12",
+  "validation_end": "2023-10-16",
+  "test_start": "2023-10-17",
+  "test_end": "2024-10-18",
+  "feature_scaling": {
+    "feature_mean": {
+      "sp500_log_return": 0.00034783862065523863,
+      "sp500_rsi_14": 55.302818298339844,
+      "sp500_macd_hist": -0.014916833490133286,
+      "sp500_bb_zscore": 0.3794329762458801,
+      "nasdaq_log_return": 0.0005269649554975331,
+      "nasdaq_rsi_14": 55.851200103759766,
+      "nasdaq_macd_hist": -0.011850584298372269,
+      "nasdaq_bb_zscore": 0.39222827553749084,
+      "silver_log_return": -6.596598268515663e-06,
+      "silver_rsi_14": 49.73744201660156,
+      "silver_macd_hist": 2.9763471047772327e-06,
+      "silver_bb_zscore": -0.020954985171556473,
+      "oil_log_return": 0.0002306320093339309,
+      "oil_rsi_14": 50.70298767089844,
+      "oil_macd_hist": -0.0019000067841261625,
+      "oil_bb_zscore": 0.06919936835765839,
+      "platinum_log_return": -0.00022798134887125343,
+      "platinum_rsi_14": 48.97782897949219,
+      "platinum_macd_hist": -0.0020837895572185516,
+      "platinum_bb_zscore": -0.052634116262197495,
+      "palladium_log_return": 0.0004138340591453016,
+      "palladium_rsi_14": 52.35418701171875,
+      "palladium_macd_hist": -0.0018948949873447418,
+      "palladium_bb_zscore": 0.1850699931383133,
+      "gold_log_return": 7.617053051944822e-05,
+      "gold_rsi_14": 50.924339294433594,
+      "gold_macd_hist": -0.002048339694738388,
+      "gold_bb_zscore": 0.08003462851047516,
+      "eur_usd_ret_l1": -9.765037975739688e-05,
+      "usd_chf_ret_l1": -2.8337515686871484e-05,
+      "gdp_growth_l1": 0.00018127630755770952,
+      "cpi_inflation_l1": 9.995418804464862e-05,
+      "rate_change_l1": 0.0007615360082127154
+    },
+    "feature_std": {
+      "sp500_log_return": 0.011149604804813862,
+      "sp500_rsi_14": 11.217938423156738,
+      "sp500_macd_hist": 0.9484120607376099,
+      "sp500_bb_zscore": 1.30382239818573,
+      "nasdaq_log_return": 0.013071415014564991,
+      "nasdaq_rsi_14": 11.715004920959473,
+      "nasdaq_macd_hist": 0.8280787467956543,
+      "nasdaq_bb_zscore": 1.3040363788604736,
+      "silver_log_return": 0.018396416679024696,
+      "silver_rsi_14": 12.871744155883789,
+      "silver_macd_hist": 0.1667170375585556,
+      "silver_bb_zscore": 1.3637573719024658,
+      "oil_log_return": 0.04499693587422371,
+      "oil_rsi_14": 13.183205604553223,
+      "oil_macd_hist": 0.23442180454730988,
+      "oil_bb_zscore": 1.365182876586914,
+      "platinum_log_return": 0.014521902427077293,
+      "platinum_rsi_14": 11.912814140319824,
+      "platinum_macd_hist": 0.5776317715644836,
+      "platinum_bb_zscore": 1.3518962860107422,
+      "palladium_log_return": 0.020938321948051453,
+      "palladium_rsi_14": 11.782551765441895,
+      "palladium_macd_hist": 1.0792218446731567,
+      "palladium_bb_zscore": 1.3285675048828125,
+      "gold_log_return": 0.009868042543530464,
+      "gold_rsi_14": 12.468515396118164,
+      "gold_macd_hist": 0.47251424193382263,
+      "gold_bb_zscore": 1.333728313446045,
+      "eur_usd_ret_l1": 0.005352267995476723,
+      "usd_chf_ret_l1": 0.00623947661370039,
+      "gdp_growth_l1": 0.00357615458779037,
+      "cpi_inflation_l1": 0.0008847576100379229,
+      "rate_change_l1": 0.03749411925673485
+    },
+    "target_mean": {
+      "target": 0.0005289409309625626
+    },
+    "target_std": {
+      "target": 0.013068780303001404
+    }
+  },
+  "feature_categories": {
+    "fx_return": 2,
+    "macro_change": 3,
+    "momentum": 7,
+    "relative_price": 7,
+    "returns": 7,
+    "trend_momentum": 7
+  },
+  "evaluation_metrics": {
+    "rmse": 0.01089792512357235,
+    "mae": 0.008095593191683292,
+    "directional_accuracy": 0.5714285714285714,
+    "mean_forecast_error": 0.00023771609994582832,
+    "forecast_actual_correlation": 0.1268602467758123
+  },
+  "validation_metrics": {
+    "rmse": 0.013761183246970177,
+    "mae": 0.01054143626242876,
+    "directional_accuracy": 0.48412698412698413
+  },
+  "phase3_benchmark": {
+    "rmse": 0.011026298834373824,
+    "mae": 0.008240325541038256,
+    "directional_accuracy": 0.5277777777777778
+  },
+  "training_history_tail": [
+    {
+      "epoch": 13,
+      "train_loss": 0.9727668153742949,
+      "validation_loss": 1.1324826031923294,
+      "train_rmse": 0.9862894176530005,
+      "validation_rmse": 1.0641816589249833
+    },
+    {
+      "epoch": 14,
+      "train_loss": 0.9554101824760437,
+      "validation_loss": 1.1391398906707764,
+      "train_rmse": 0.9774508593663641,
+      "validation_rmse": 1.0673049661042415
+    },
+    {
+      "epoch": 15,
+      "train_loss": 0.948718079055349,
+      "validation_loss": 1.1389994621276855,
+      "train_rmse": 0.9740216009182492,
+      "validation_rmse": 1.0672391775640948
+    },
+    {
+      "epoch": 16,
+      "train_loss": 0.9249337439735731,
+      "validation_loss": 1.175483524799347,
+      "train_rmse": 0.9617347575987742,
+      "validation_rmse": 1.0841971798521461
+    },
+    {
+      "epoch": 17,
+      "train_loss": 0.9119051968057951,
+      "validation_loss": 1.1721295565366745,
+      "train_rmse": 0.9549372737545618,
+      "validation_rmse": 1.0826493229742835
+    }
+  ]
+}
