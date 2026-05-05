@@ -1,0 +1,4 @@
+Model,Macro F1
+Baseline (no handling),0.2038071438939133
+Best strategy (SMOTE),0.27768302892615154
+GridSearchCV Tuned,0.28153145150818915
