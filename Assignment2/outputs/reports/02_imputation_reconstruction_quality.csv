@@ -1,0 +1,33 @@
+Imputer,column,n_missing,MAE,RMSE
+Mean (univariate),nasdaq_rsi_14,36,9.415551,11.684697
+Mean (univariate),nasdaq_macd,43,4.798075,5.713806
+Mean (univariate),nasdaq_macd_signal,41,4.484984,5.041898
+Mean (univariate),nasdaq_macd_hist,40,1.260562,1.613771
+Mean (univariate),nasdaq_bb_width,38,0.044064,0.058185
+Mean (univariate),nasdaq_lr_lag1,37,0.012516,0.016316
+Mean (univariate),nasdaq_lr_lag2,32,0.008301,0.011181
+Mean (univariate),nasdaq_vol_5d,44,0.005586,0.007828
+Median (univariate),nasdaq_rsi_14,36,9.489814,11.915587
+Median (univariate),nasdaq_macd,43,4.800323,5.690376
+Median (univariate),nasdaq_macd_signal,41,4.507462,5.046757
+Median (univariate),nasdaq_macd_hist,40,1.256631,1.609521
+Median (univariate),nasdaq_bb_width,38,0.050223,0.064163
+Median (univariate),nasdaq_lr_lag1,37,0.012504,0.016279
+Median (univariate),nasdaq_lr_lag2,32,0.008249,0.011068
+Median (univariate),nasdaq_vol_5d,44,0.006276,0.008862
+KNN (k=5),nasdaq_rsi_14,36,11.412675,15.444499
+KNN (k=5),nasdaq_macd,43,4.422557,5.701837
+KNN (k=5),nasdaq_macd_signal,41,4.089211,5.191911
+KNN (k=5),nasdaq_macd_hist,40,1.247685,1.617703
+KNN (k=5),nasdaq_bb_width,38,0.039935,0.052607
+KNN (k=5),nasdaq_lr_lag1,37,0.012145,0.015807
+KNN (k=5),nasdaq_lr_lag2,32,0.008581,0.011331
+KNN (k=5),nasdaq_vol_5d,44,0.006383,0.008819
+MICE / IterativeImputer,nasdaq_rsi_14,36,7.473968,9.358928
+MICE / IterativeImputer,nasdaq_macd,43,0.293968,1.294014
+MICE / IterativeImputer,nasdaq_macd_signal,41,0.260558,1.298868
+MICE / IterativeImputer,nasdaq_macd_hist,40,0.089015,0.327628
+MICE / IterativeImputer,nasdaq_bb_width,38,0.018527,0.024746
+MICE / IterativeImputer,nasdaq_lr_lag1,37,0.004104,0.004992
+MICE / IterativeImputer,nasdaq_lr_lag2,32,0.009528,0.01126
+MICE / IterativeImputer,nasdaq_vol_5d,44,0.00487,0.005919

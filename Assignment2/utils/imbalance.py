@@ -33,12 +33,26 @@ from imblearn.pipeline import Pipeline as ImbPipeline
 # Strategy catalogue
 # ---------------------------------------------------------------------------
  
-def get_strategies(random_state: int = 42) -> dict:
+def safe_k_neighbors(y, default: int = 5) -> int:
+    """
+    SMOTE/ADASYN need at least k+1 samples in the smallest class within every
+    CV fold. Returns min(default, n_min - 1) with a floor of 1 so the algorithm
+    never crashes on tiny minority classes.
+    """
+    counts = pd.Series(y).value_counts()
+    n_min = int(counts.min())
+    return max(1, min(default, n_min - 1))
+
+
+def get_strategies(random_state: int = 42, y_train=None) -> dict:
     """
     Return a dict mapping strategy name → imblearn/sklearn Pipeline.
-    
+
     All pipelines follow the same structure:
       [optional sampler] → StandardScaler → RandomForestClassifier
+
+    If `y_train` is provided, k_neighbors for SMOTE/ADASYN is shrunk to
+    a safe value when the minority class is small (avoids crashes inside CV).
     """
     rf_params = dict(
         n_estimators=300,
@@ -46,7 +60,8 @@ def get_strategies(random_state: int = 42) -> dict:
         random_state=random_state,
         n_jobs=-1,
     )
- 
+    k = safe_k_neighbors(y_train) if y_train is not None else 5
+
     strategies = {
         # ------------------------------------------------------------------ #
         # Baseline (no handling)                                              #
@@ -55,7 +70,7 @@ def get_strategies(random_state: int = 42) -> dict:
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params)),
         ]),
- 
+
         # ------------------------------------------------------------------ #
         # Class weights only (no resampling)                                  #
         # ------------------------------------------------------------------ #
@@ -63,7 +78,7 @@ def get_strategies(random_state: int = 42) -> dict:
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params, class_weight="balanced")),
         ]),
- 
+
         # ------------------------------------------------------------------ #
         # Over-sampling                                                       #
         # ------------------------------------------------------------------ #
@@ -73,16 +88,16 @@ def get_strategies(random_state: int = 42) -> dict:
             ("clf", RandomForestClassifier(**rf_params)),
         ]),
         "SMOTE": ImbPipeline([
-            ("sampler", SMOTE(random_state=random_state, k_neighbors=5)),
+            ("sampler", SMOTE(random_state=random_state, k_neighbors=k)),
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params)),
         ]),
         "ADASYN": ImbPipeline([
-            ("sampler", ADASYN(random_state=random_state, n_neighbors=5)),
+            ("sampler", ADASYN(random_state=random_state, n_neighbors=k)),
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params)),
         ]),
- 
+
         # ------------------------------------------------------------------ #
         # Under-sampling                                                      #
         # ------------------------------------------------------------------ #
@@ -91,12 +106,13 @@ def get_strategies(random_state: int = 42) -> dict:
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params)),
         ]),
- 
+
         # ------------------------------------------------------------------ #
         # Combined (SMOTE + ENN cleaning)                                    #
         # ------------------------------------------------------------------ #
         "SMOTEENN": ImbPipeline([
-            ("sampler", SMOTEENN(random_state=random_state)),
+            ("sampler", SMOTEENN(random_state=random_state,
+                                 smote=SMOTE(random_state=random_state, k_neighbors=k))),
             ("scaler", StandardScaler()),
             ("clf", RandomForestClassifier(**rf_params)),
         ]),

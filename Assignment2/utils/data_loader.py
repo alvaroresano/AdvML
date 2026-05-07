@@ -128,13 +128,56 @@ def compute_technical_indicators(df: pd.DataFrame) -> pd.DataFrame:
     return df
  
  
-def create_target(df: pd.DataFrame, n_classes: int = 5) -> pd.DataFrame:
+def compute_thresholds(ret: pd.Series, n_classes: int = 5) -> list[float]:
+    """
+    Compute class thresholds from a return series (must be the TRAINING split
+    in any predictive setup, otherwise the labels leak future information).
+    """
+    mu, sigma = ret.mean(), ret.std()
+    if n_classes == 5:
+        return [mu - 1.5 * sigma, mu - 0.5 * sigma, mu + 0.5 * sigma, mu + 1.5 * sigma]
+    if n_classes == 3:
+        return [mu - 0.5 * sigma, mu + 0.5 * sigma]
+    raise ValueError("n_classes must be 3 or 5")
+
+
+def discretise_returns(ret: pd.Series, thresholds: list[float]) -> np.ndarray:
+    """Apply pre-computed thresholds to bucket a return series into ordinal classes."""
+    if len(thresholds) == 4:
+        conds = [
+            ret < thresholds[0],
+            (ret >= thresholds[0]) & (ret < thresholds[1]),
+            (ret >= thresholds[1]) & (ret <= thresholds[2]),
+            (ret > thresholds[2]) & (ret <= thresholds[3]),
+            ret > thresholds[3],
+        ]
+        return np.select(conds, [0, 1, 2, 3, 4])
+    if len(thresholds) == 2:
+        conds = [
+            ret < thresholds[0],
+            (ret >= thresholds[0]) & (ret <= thresholds[1]),
+            ret > thresholds[1],
+        ]
+        return np.select(conds, [0, 1, 2])
+    raise ValueError("thresholds must have length 2 or 4")
+
+
+def create_target(
+    df: pd.DataFrame,
+    n_classes: int = 5,
+    thresholds: list[float] | None = None,
+) -> pd.DataFrame:
     """
     Discretise the NEXT-DAY nasdaq log return into n_classes movement categories.
-    Thresholds are defined relative to mean ± k*std of the TRAINING distribution
-    (should be computed on training set only; here we compute globally for EDA
-     and reassign correctly inside the pipeline).
- 
+
+    Parameters
+    ----------
+    thresholds : list[float] or None
+        If provided, used as-is (typical predictive use: compute them on the
+        training split and pass them in). If None, they are computed from
+        the full series — this is **only** acceptable for descriptive EDA
+        of the raw distribution, never for evaluation pipelines.
+
     Classes (5-class):
       0: Strong Drop  (ret < mu - 1.5*sigma)
       1: Mild Drop    (mu - 1.5*sigma <= ret < mu - 0.5*sigma)
@@ -146,29 +189,14 @@ def create_target(df: pd.DataFrame, n_classes: int = 5) -> pd.DataFrame:
     # Target = NEXT day return (shift -1)
     df["target_return"] = df["nasdaq_log_return"].shift(-1)
     df = df.dropna(subset=["target_return"]).reset_index(drop=True)
- 
+
     ret = df["target_return"]
-    mu, sigma = ret.mean(), ret.std()
- 
-    if n_classes == 5:
-        t = [mu - 1.5 * sigma, mu - 0.5 * sigma, mu + 0.5 * sigma, mu + 1.5 * sigma]
-        conds = [
-            ret < t[0],
-            (ret >= t[0]) & (ret < t[1]),
-            (ret >= t[1]) & (ret <= t[2]),
-            (ret > t[2]) & (ret <= t[3]),
-            ret > t[3],
-        ]
-        df["target_class"] = np.select(conds, [0, 1, 2, 3, 4])
-    elif n_classes == 3:
-        t = [mu - 0.5 * sigma, mu + 0.5 * sigma]
-        conds = [ret < t[0], (ret >= t[0]) & (ret <= t[1]), ret > t[1]]
-        df["target_class"] = np.select(conds, [0, 1, 2])
-    else:
-        raise ValueError("n_classes must be 3 or 5")
- 
+    if thresholds is None:
+        thresholds = compute_thresholds(ret, n_classes=n_classes)
+    df["target_class"] = discretise_returns(ret, thresholds)
+
     # Store thresholds for later use
-    df.attrs["thresholds"] = t
+    df.attrs["thresholds"] = thresholds
     df.attrs["n_classes"] = n_classes
     return df
  
@@ -265,9 +293,34 @@ def _get_feature_cols(df: pd.DataFrame) -> list[str]:
         "platinum_open", "platinum_high", "platinum_low", "platinum_close", "platinum_volume", "platinum_high-low",
         "palladium_open", "palladium_high", "palladium_low", "palladium_close", "palladium_volume", "palladium_high-low",
         "gold_open", "gold_high", "gold_low", "gold_close", "gold_volume",
-        "sp500_high-low", "nasdaq_high-low",
     }
     return [c for c in df.columns if c not in exclude]
+
+
+# ---------------------------------------------------------------------------
+# Chronological split (financial data is autocorrelated → no shuffling)
+# ---------------------------------------------------------------------------
+
+def chronological_split(
+    df: pd.DataFrame,
+    test_size: float = 0.2,
+    date_col: str = "date",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Split a time-ordered DataFrame chronologically: the last `test_size`
+    fraction (most recent rows) becomes the test set.
+
+    Stratified random splits leak temporal context across the boundary
+    when features include lags, rolling stats or autocorrelated targets,
+    so for this dataset we always use a chronological cut.
+    """
+    if date_col in df.columns:
+        df = df.sort_values(date_col).reset_index(drop=True)
+    n = len(df)
+    n_test = int(np.floor(n * test_size))
+    train = df.iloc[: n - n_test].copy()
+    test = df.iloc[n - n_test :].copy()
+    return train, test
  
  
 def get_X_y(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
