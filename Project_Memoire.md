@@ -154,7 +154,82 @@ Simple returns measure the straightforward percentage change between two periods
 
 ### Why log returns instead of simple returns
 
-Logarithmic returns, calculated as the natural logarithm of the ratio of the current price to the previous price, are the standard for advanced time series forecasting. They offer several mathematical advantages. First, log returns compound additively over time, meaning the cumulative log return over a sequence of periods is simply the sum of the individual period log returns. Second, they possess perfect symmetry. If an asset's price increases from a baseline to a higher value and then returns to the baseline, the positive and negative log returns are absolute equals, unlike simple returns which mathematically distort the recovery required from a drawdown. Finally, log returns map the domain of positive real numbers to the entire real line, aligning perfectly with the assumptions of standard regression models and Gaussian error distributions. If asset prices follow a geometric Brownian motion, their log returns are normally distributed
+Logarithmic returns, calculated as the natural logarithm of the ratio of the current price to the previous price, are the standard for advanced time series forecasting. There are three distinct mathematical reasons for this.
+
+#### Reason 1 — Additivity over time
+
+Log returns add across time periods while simple returns do not. For a sequence of periods:
+
+$$r_{t_1 \to t_3} = \log\!\left(\frac{S_{t_3}}{S_{t_1}}\right) = \log\!\left(\frac{S_{t_2}}{S_{t_1}}\right) + \log\!\left(\frac{S_{t_3}}{S_{t_2}}\right) = r_{t_1 \to t_2} + r_{t_2 \to t_3}$$
+
+The cumulative log return over any interval is just the sum of the sub-period log returns. Simple returns do not have this property — they compound multiplicatively: $(1 + R_{t_1 \to t_3}) = (1 + R_{t_1 \to t_2})(1 + R_{t_2 \to t_3})$.
+
+Additivity matters for modeling: summing independent random variables and applying standard regression or time-series tools is far more tractable than working with products.
+
+#### Reason 2 — Symmetry of gains and losses
+
+With simple returns, a 50% loss followed by a 100% gain brings you back to the starting point (0.5 × 2.0 = 1.0), but the magnitudes look asymmetric (+100% vs −50%). With log returns, the same round-trip is $\log(0.5) + \log(2) = -0.693 + 0.693 = 0$, perfectly symmetric. This symmetry makes log returns easier to model with symmetric distributions like the Gaussian or Student-t.
+
+#### Reason 3 — Domain alignment: prices are positive, so log returns live on all of ℝ
+
+Prices must be strictly positive: $S_t > 0$ always. Therefore $S_T / S_0 \in (0, +\infty)$. The natural logarithm maps $(0, +\infty)$ **bijectively** to $(-\infty, +\infty) = \mathbb{R}$:
+
+| Price ratio $S_T/S_0$ | Log return | Economic meaning |
+| --- | --- | --- |
+| $\to 0^+$ | $\to -\infty$ | Near-total loss |
+| $0.5$ | $-0.693$ | Price halved |
+| $1.0$ | $0$ | No change |
+| $2.0$ | $+0.693$ | Price doubled |
+| $\to +\infty$ | $\to +\infty$ | Unlimited gain |
+
+Compare this to the **simple return** $R = S_T/S_0 - 1$, which maps $(0, +\infty)$ to $(-1, +\infty)$ — simple returns are bounded below by $-1$ (losing more than 100% is impossible). A Gaussian distribution places positive probability mass on values below $-1$, which simple returns can never achieve. The domain is inconsistent.
+
+Log returns live on all of $\mathbb{R}$, exactly matching the support of Gaussian (and Student-t) error distributions. This is why regression models and ARIMA-class models with Gaussian errors are domain-consistent when the target is a log return but not when it is a simple return.
+
+#### Geometric Brownian Motion — the theoretical justification
+
+The domain argument above is necessary but not sufficient. The stronger theoretical justification comes from the **Geometric Brownian Motion (GBM)** model, which is the canonical continuous-time model for asset prices.
+
+**What GBM is.** A standard Brownian motion $W_t$ is a random process where increments $W_t - W_s \sim \mathcal{N}(0, t-s)$ are independent and Gaussian — it is accumulated Gaussian noise through time. GBM models the price $S_t$ via the stochastic differential equation (SDE):
+
+$$dS_t = \mu S_t\,dt + \sigma S_t\,dW_t$$
+
+- $\mu S_t\,dt$: deterministic drift proportional to the current price (μ = expected return per unit time)
+- $\sigma S_t\,dW_t$: random shock proportional to the current price (σ = volatility)
+
+Both terms are proportional to $S_t$, which is what makes it *geometric*. This proportionality ensures prices stay positive and that percentage volatility (not absolute dollar volatility) is constant — a 1% move on a $1,000 stock is the same model-magnitude as a 1% move on a $10 stock.
+
+**Why log returns are Gaussian under GBM.** Apply **Itô's lemma** (the stochastic calculus chain rule for nonlinear functions of Brownian processes) to $f(S_t) = \log S_t$:
+
+$$d(\log S_t) = \frac{1}{S_t}\,dS_t - \frac{1}{2}\cdot\frac{1}{S_t^2}\cdot(dS_t)^2$$
+
+The second term is the Itô correction that standard calculus does not have (it arises because $W_t$ has non-zero quadratic variation: $(dW_t)^2 = dt$ in the Itô sense). Substituting $dS_t = \mu S_t\,dt + \sigma S_t\,dW_t$ and using $(dS_t)^2 = \sigma^2 S_t^2\,dt$:
+
+$$d(\log S_t) = \frac{\mu S_t\,dt + \sigma S_t\,dW_t}{S_t} - \frac{\sigma^2 S_t^2\,dt}{2S_t^2} = \left(\mu - \frac{\sigma^2}{2}\right)dt + \sigma\,dW_t$$
+
+The right-hand side now has constant coefficients — no $S_t$ anywhere. Integrating from $0$ to $T$:
+
+$$\log\!\left(\frac{S_T}{S_0}\right) = \left(\mu - \frac{\sigma^2}{2}\right)T + \sigma W_T$$
+
+Since $W_T \sim \mathcal{N}(0, T)$:
+
+$$\boxed{\log\!\left(\frac{S_T}{S_0}\right) \sim \mathcal{N}\!\!\left(\left(\mu - \frac{\sigma^2}{2}\right)T,\; \sigma^2 T\right)}$$
+
+**The log return is a linear function of a Gaussian random variable — therefore it is Gaussian under GBM.** This is the formal justification for the sentence "if asset prices follow a geometric Brownian motion, their log returns are normally distributed."
+
+**The Itô correction $\sigma^2/2$.** The expected log return $(\mu - \sigma^2/2)T$ is always slightly less than $\mu T$. This is not an approximation — it is exact, and it reflects the mathematics of compounding: variance in returns always erodes geometric growth relative to arithmetic growth. A strategy with drift $\mu = 0.10$ and volatility $\sigma = 0.20$ has expected log return $(0.10 - 0.02)T = 0.08T$, not $0.10T$. This gap is the **variance drag** and it is real and important in portfolio management.
+
+#### The honest caveat — GBM is a theoretical model, not an empirical fact
+
+GBM gives the theoretical motivation for log returns, but it makes three assumptions that are empirically violated by real financial data:
+
+1. **Normally distributed log returns**: real log returns have fat tails (kurtosis >> 3) and mild negative skew. The Jarque-Bera test in Phase 3 strongly rejects Gaussianity. The Q-Q plots show clear tail departures. This is why Phase 4 uses a Student-t innovation distribution for GARCH.
+
+2. **i.i.d. returns across time**: real log returns show volatility clustering — large moves tend to be followed by large moves regardless of sign. This is the entire empirical motivation for GARCH: if returns were i.i.d., GARCH would have nothing to model.
+
+3. **Constant variance**: the variance $\sigma^2$ is assumed fixed in GBM but varies over time in reality. GARCH explicitly models this time-variation.
+
+The correct framing is: **GBM provides the theoretical justification for working with log returns** (domain, additivity, Gaussian ideal), while the subsequent modeling choices (GARCH, Student-t, nonlinear features) acknowledge and correct for the ways real markets deviate from GBM. Log returns are not chosen because markets follow GBM — they are chosen because log returns have the right mathematical properties regardless of whether GBM holds exactly.
 
 For a price series $(P_t)$, the simple return is:
 
@@ -375,13 +450,33 @@ The SARIMAX model in Phase 3 handles the **conditional mean** — it estimates $
 
 The GARCH model in Phase 4 handles the **conditional variance** — it estimates $\text{Var}[y_t | \mathcal{F}_{t-1}] = \sigma_t^2$, the time-varying uncertainty around that mean.
 
-These two models are complementary, not competing. The SARIMAX residuals (which still contain volatility clustering, as shown by the Ljung-Box test on squared residuals at lags 10 and 20) become the input to the GARCH model. The complete two-phase model says:
+These two models are complementary, not competing. They are **not summed** — they model two different statistical moments of the same return. The SARIMAX residuals (which still contain volatility clustering, as shown by the Ljung-Box test on squared residuals at lags 10 and 20) become the input to the GARCH model. The complete two-phase model writes:
 
-$$
-y_t = \hat{y}_t^{\text{SARIMAX}} + \varepsilon_t, \qquad \varepsilon_t = \sigma_t z_t, \qquad z_t \sim t_\nu(0,1)
-$$
+$$y_t = \hat{y}_t^{\text{SARIMAX}} + \varepsilon_t, \qquad \varepsilon_t = \sigma_t z_t, \qquad z_t \overset{\text{iid}}{\sim} t_\nu(0,1)$$
 
-where $\hat{y}_t^{\text{SARIMAX}}$ is the SARIMAX conditional mean and $\sigma_t$ is the GARCH-estimated conditional standard deviation.
+$$\sigma_t^2 = \omega + \alpha\varepsilon_{t-1}^2 + \beta\sigma_{t-1}^2$$
+
+Together they describe the full conditional distribution of tomorrow's return:
+
+$$y_t \mid \mathcal{F}_{t-1} \sim \text{scaled-}t_\nu\!\left(\hat{y}_t^{\text{SARIMAX}},\; \sigma_t^2\right)$$
+
+SARIMAX provides the **center** of that distribution; GARCH provides its **width**. This is the standard two-step approach in financial econometrics: fit the mean model first, extract residuals, fit the variance model on those residuals.
+
+#### How they are actually used in practice — and where they are not combined
+
+Despite the theoretical joint model above, SARIMAX and GARCH are used **separately** in this project's trading evaluation:
+
+- **Phase 6 (backtesting)**: the trading rule is $\text{position}_t = \text{sign}(\hat{y}_t^{\text{SARIMAX}})$. Only the SARIMAX mean forecast drives trading decisions. The GARCH volatility estimate $\sigma_t$ is **not used** to size or filter positions.
+
+- **`03_Forecasting_LSTM_&_Chronos.ipynb`**: the GARCH conditional variance $\sigma_t^2$ **is** passed as an input feature to the LSTM. The LSTM can therefore condition its residual prediction on the current volatility regime. This is the closest the project comes to truly combining the two models — GARCH output feeds into the deep model's feature vector.
+
+#### What a true joint combination would look like
+
+A natural extension that this project does not implement is **volatility-scaled position sizing**:
+
+$$\text{position}_t = \frac{\hat{y}_t^{\text{SARIMAX}}}{\sigma_t^{\text{GARCH}}}$$
+
+This gives a larger position when the forecast is large *relative to current uncertainty*, and a smaller position when the market is highly volatile. It is related to the Kelly criterion and is standard in professional systematic strategies. Under this rule, GARCH actively modulates the trading signal — a high-confidence forecast during a calm period generates a large position; the same forecast during a volatility spike generates a smaller one. This would be a direct, economically motivated combination of the two models and represents a natural next step beyond the current Phase 6 implementation.
 
 ### How and where the exogenous block is built
 
@@ -1666,29 +1761,125 @@ This is useful because the experiment settings are centralized rather than scatt
 
 This makes the pipeline easy to inspect and serialize.
 
-#### `PatchTSTForecaster`
+#### `PatchTSTForecaster` — full tensor shape trace
 
-This is the neural network itself.
+This is the neural network itself. The config values that drive all shapes are: `lookback_window=60`, `patch_length=10`, `patch_stride=5`, `num_channels=33`, `d_model=32`, `num_heads=4`, `num_layers=2`, `feedforward_dim=64`. Let B denote batch size.
 
-Its constructor creates:
+**Constructor — what each layer is:**
 
-- `patch_embedding`: converts each 10-day patch into a 32-dimensional latent vector,
-- `position_embedding`: tells the model where each patch sits in the lookback window,
-- `encoder`: the transformer stack,
-- `channel_norm`: stabilizes the pooled representation,
-- `head`: converts the encoded representation into one scalar forecast.
+- `patch_embedding = nn.Linear(10, 32)`: projects each 10-day raw patch into a 32-dim token. One shared linear layer used across all channels and all patch positions.
+- `position_embedding = nn.Parameter(zeros(1, 1, 11, 32))`: learnable positional offset, one vector per of the 11 patch slots. Initialized near zero, learned during training. Tells the model which patch (early, middle, late in the 60-day window) each token represents.
+- `encoder = nn.TransformerEncoder(layer, num_layers=2)`: stack of 2 Pre-LN Transformer encoder layers, each containing Multi-Head Self-Attention (4 heads, d_model=32) followed by a FeedForward block (32 → 64 → 32, GELU activation).
+- `channel_norm = nn.LayerNorm(32)`: normalizes the pooled per-channel representation before the head.
+- `head = nn.Sequential(Flatten, Linear(1056→64), GELU, Dropout(0.10), Linear(64→1))`: two-layer MLP that mixes all 33 channels and outputs one scalar.
 
-The `forward` pass does the following:
+**`num_patches` formula** (computed at construction, line 101):
 
-1. Transpose the input from `[batch, time, features]` to `[batch, features, time]`.
-2. Create overlapping temporal patches with `unfold`.
-3. Project each patch into the latent space with `patch_embedding`.
-4. Add positional embeddings.
-5. Reshape the patch sequence so the transformer encoder can process it.
-6. Run self-attention and feedforward layers through the encoder.
-7. Average across patches to get one summary per channel.
-8. Flatten the channel summaries and map them through the prediction head.
-9. Output one next-step forecast.
+$$N_{\text{patches}} = 1 + \frac{L - P}{S} = 1 + \frac{60 - 10}{5} = 11$$
+
+where $L=60$ is the lookback window, $P=10$ is the patch length, and $S=5$ is the stride.
+
+**Forward pass — step by step with tensor shapes:**
+
+```text
+Input: [B, 60, 33]              (batch, lookback days, feature channels)
+```
+
+**Step 1 — Transpose** (line 129):
+
+```python
+series = inputs.transpose(1, 2)
+# [B, 60, 33] → [B, 33, 60]
+```
+
+Move the channel dimension before the time dimension so `unfold` can slide along time per channel.
+
+**Step 2 — Patch extraction with unfold** (line 130):
+
+```python
+patches = series.unfold(dimension=2, size=10, step=5)
+# [B, 33, 60] → [B, 33, 11, 10]
+```
+
+`unfold` slides a window of size 10 with step 5 along dimension 2 (the time axis). Produces 11 overlapping patches, each 10 days long. The patches overlap by 5 days — patch 0 covers days 0–9, patch 1 covers days 5–14, ..., patch 10 covers days 50–59.
+
+**Step 3 — Patch projection + positional embedding** (line 131):
+
+```python
+tokens = self.patch_embedding(patches) + self.position_embedding
+# Linear(10→32) applied to last dim: [B, 33, 11, 10] → [B, 33, 11, 32]
+# position_embedding shape: [1, 1, 11, 32] → broadcasts to [B, 33, 11, 32]
+# result: [B, 33, 11, 32]
+```
+
+Each 10-day patch becomes a 32-dim token. The position embedding adds a learned offset that encodes *where* in the window the patch sits.
+
+**Step 4 — Channel-independent Transformer encoding** (lines 133–134):
+
+```python
+encoded = self.encoder(tokens.reshape(B * 33, 11, 32))
+# reshape: [B, 33, 11, 32] → [B*33, 11, 32]
+# encoder processes B*33 independent sequences of 11 tokens
+# output: [B*33, 11, 32]
+```
+
+This is the **key trick for channel-independence**: merging the batch and channel dimensions into one "super-batch" forces the Transformer to treat each channel's patch sequence as completely independent. The encoder weights are *shared* across all 33 channels (same parameters used for each channel), but no channel attends to another — self-attention is only within a channel's own 11 tokens.
+
+Inside each of the 2 encoder layers (Pre-LN = LayerNorm first, then attention/FFN):
+
+1. LayerNorm → Multi-Head Self-Attention (4 heads, keys/queries/values all in ℝ^8 per head) → residual add
+2. LayerNorm → FeedForward (32 → 64 → 32, GELU) → residual add
+
+**Step 5 — Mean pool over patches + channel reassembly** (line 135):
+
+```python
+pooled = self.channel_norm(encoded.mean(dim=1)).reshape(B, 33, 32)
+# encoded: [B*33, 11, 32]
+# .mean(dim=1): average over 11 patches → [B*33, 32]
+# channel_norm: LayerNorm(32)
+# .reshape(B, 33, 32): reassemble channels
+```
+
+Instead of flattening all 11 patch representations per channel (which would give 11×32=352 dims per channel, 11,616 total — too large for the training set), we average-pool across the patch dimension. This compresses each channel's temporal information into a single 32-dim summary vector.
+
+**Step 6 — Cross-channel prediction head** (lines 117–136):
+
+```python
+forecast = self.head(pooled).squeeze(-1)
+# Flatten: [B, 33, 32] → [B, 1056]
+# Linear(1056→64): cross-channel mixing
+# GELU + Dropout(0.10)
+# Linear(64→1): scalar forecast
+# squeeze: [B, 1] → [B]
+```
+
+The head explicitly mixes information from all 33 channels. This is where the model learns which combination of asset returns, RSI signals, MACD, Bollinger bands, FX moves, and macro features is most predictive of tomorrow's NASDAQ return.
+
+**Complete shape flow summary:**
+
+| Stage | Tensor shape | Operation |
+| --- | --- | --- |
+| Input | [B, 60, 33] | Raw lookback window |
+| After transpose | [B, 33, 60] | Channel-first |
+| After unfold | [B, 33, 11, 10] | 11 overlapping 10-day patches |
+| After patch embedding + pos | [B, 33, 11, 32] | Tokens in d_model space |
+| After reshape for encoder | [B×33, 11, 32] | Channel-independent view |
+| After Transformer encoder | [B×33, 11, 32] | Context-enriched tokens |
+| After mean pool + reshape | [B, 33, 32] | One vector per channel |
+| After flatten | [B, 1056] | All channels concatenated |
+| After MLP head | [B, 1] | Next-day return forecast |
+
+### Paper vs implementation: a direct comparison
+
+| Aspect | Original PatchTST paper | Our implementation | Reason for deviation |
+| --- | --- | --- | --- |
+| **Patching** | Non-overlapping (stride = patch_length) | Overlapping (stride=5 < patch_length=10) | More tokens from short 60-day window (11 vs 6) |
+| **Channel independence** | Strict — separate output per channel, no cross-channel mixing anywhere | Partial — encoder is channel-independent, but head mixes all channels | We need a single NASDAQ forecast from all 33 channels |
+| **Instance normalization** | RevIN — reversible per-instance normalization inside the model | External z-score standardization on training stats | Simpler, sufficient for near-zero-mean return series |
+| **Patch pooling** | Flatten all patch representations → large linear head | Mean pool over patches → compact head | Avoids 11,616-dim head that would overfit on ~3000 windows |
+| **Output** | Multi-step forecast: T future steps (24, 96, 192, 720 in paper) | One-step-ahead scalar (next-day return) | Assignment objective is next-day return, not long-horizon |
+| **Encoder normalization** | Post-LN (original) | Pre-LN (`norm_first=True`) | Pre-LN is more stable for small models and short training |
+| **Activation** | ReLU in FFN | GELU | Smoother gradient landscape; standard in modern transformers |
 
 #### `PatchTSTDeepForecaster.run`
 
@@ -1878,6 +2069,32 @@ So the procedure is:
 5. repeat the entire process.
 
 This is much more defensible than a single split because it evaluates the models under multiple historical regimes.
+
+### Is Phase 6 a backtest? Yes — and here is exactly what that means
+
+Phase 6 is a **walk-forward backtest**. "Backtest" means: simulate what would have happened if you had used this model to trade in the past, with realistic constraints, starting from historical data. "Walk-forward" means the simulation respects time — you never use future data to make a past decision.
+
+The question Phase 6 answers is not "how accurate are the forecasts?" — that was answered in Phases 3 and 5. The question is:
+
+> "If I had repeatedly used this model to make trading decisions through different market regimes, with real transaction costs, what would have actually happened to a portfolio following this strategy?"
+
+This is a much harder and more realistic question. A model can look excellent on RMSE tables and fail commercially, or look modest statistically and still generate consistent risk-adjusted returns. Phase 6 forces both models through that test.
+
+### Concrete fold structure — what "rolling" means
+
+The 5 folds step forward one year at a time, each requiring a full model refit:
+
+```text
+Fold 1: |----TRAIN (2000 days)----|--VAL (252)--|--TEST (252)--|
+Fold 2:      |----TRAIN (2000 days)----|--VAL (252)--|--TEST (252)--|
+Fold 3:           |----TRAIN (2000 days)----|--VAL (252)--|--TEST (252)--|
+Fold 4:                |----TRAIN (2000 days)----|--VAL (252)--|--TEST (252)--|
+Fold 5:                     |----TRAIN (2000 days)----|--VAL (252)--|--TEST (252)--|
+                                                                  ↑
+                                                     5 non-overlapping test windows
+```
+
+Each fold: re-estimate the SARIMAX order from scratch (auto_arima may select a different order than (0,0,0) in some folds), retrain the PatchTST model from random initialization, generate forecasts for the 252-day test window, apply the trading rule and costs, record the P&L. The 5 test windows are non-overlapping and cover a combined ~1,260 trading days of out-of-sample history across different market regimes.
 
 ### Why rolling retraining matters
 
@@ -2069,16 +2286,65 @@ In fact:
 
 That is a highly realistic financial machine learning result.
 
-### Why this can happen
+### Why this can happen — the four mechanisms in depth
 
-A model can improve forecasting metrics without improving trading outcomes for several reasons:
+This is the conceptually deepest part of Phase 6. Understanding it fully requires decomposing exactly why a statistically superior model can be economically inferior.
 
-1. the forecast improvement may be too small relative to market noise,
-2. the improved predictions may not occur on the most economically important days,
-3. the forecast amplitudes may be too conservative to generate larger strategy gains,
-4. regime sensitivity may reduce the consistency of the edge through time.
+#### Mechanism 1 — Hit rate is uniformly weighted; P&L is not
 
-That is exactly why backtesting cannot be replaced by RMSE tables alone.
+Directional accuracy counts a correctly-predicted 0.01% return day identically to a correctly-predicted 2.0% return day. Both are scored as "1 correct direction." But from a P&L perspective, getting the sign right on a ±2% day earns 40× more than getting the sign right on a ±0.05% day. RMSE also treats large errors more heavily than small ones (quadratic penalty), but it is still symmetric around zero — it does not distinguish whether the large error was on an important or unimportant day.
+
+PatchTST achieves higher directional accuracy (53.5% vs 51.8%), but if its extra correctly-predicted days are concentrated on small-return days while it still misses the big moves, the gross P&L advantage is minimal. The SARIMAX strategy's lower accuracy may be distributed differently: it might miss more small-return days but catch more of the large return days, which dominate cumulative wealth.
+
+#### Mechanism 2 — Forecast amplitude and position sizing
+
+The trading rule uses `position_t = sign(forecast_t)` — the sign only, not the magnitude. But the magnitude of the forecast implicitly affects which days the model changes its sign. PatchTST's forecasts are more compressed toward zero (this is MSE-optimal behavior, as discussed in Phase 5). A near-zero forecast is much more likely to flip sign from one day to the next due to small random fluctuations than a model that produces larger-amplitude forecasts with more stable sign. This means:
+
+- SARIMAX produces more decisive signals (larger magnitudes), which are more stable in sign → lower spurious flip rate on unimportant days → fewer wasted trades
+- PatchTST's near-zero forecasts are sign-unstable → may stay out of the market on days that matter → lower turnover, but also missing profitable directional moves
+
+The compression of PatchTST's forecasts is statistically correct (it minimizes MSE) but economically suboptimal (the strategy needs clear directional signals, not hedged near-zero predictions).
+
+#### Mechanism 3 — Turnover asymmetry
+
+SARIMAX has turnover 0.687 (changes position ~69% of days) vs PatchTST at 0.226 (changes position ~23% of days). This seems like a massive cost disadvantage for SARIMAX: at 5 bps per flip, SARIMAX pays ≈ 0.687 × 5 bps = 3.4 bps/day in cost drag, while PatchTST pays only ≈ 0.226 × 5 bps = 1.1 bps/day.
+
+Yet SARIMAX still generates higher net returns. This means SARIMAX's higher-cost signals are *worth paying for* — the incremental gross P&L from acting on those signals exceeds the extra cost. PatchTST's lower-cost but more passive position changes do not generate enough gross P&L to overcome even the smaller cost it does pay. The economic value of the signal matters as much as its frequency.
+
+#### Mechanism 4 — Regime dependence
+
+The fold-by-fold directional accuracy chart shows that neither model consistently dominates across all 5 folds. In some market regimes (trending, mean-reverting, vol-spike), SARIMAX's linear lagged structure is better calibrated; in others, PatchTST's nonlinear feature interactions may be more useful. The aggregate winner is determined by which model happened to be better in the regimes that contribute most to the overall P&L — and this is not predictable in advance from the model's structural properties alone.
+
+This is why: **the result from Phase 6 is a historical fact about this specific dataset and sample period, not a universal law.** On a different sample period, PatchTST might win economically. The finding is that the statistical ranking does not automatically determine the economic ranking.
+
+### The correct evaluation chain for financial ML
+
+Most ML papers stop at step 2 or 3. Phase 6 goes all the way to step 5:
+
+| Step | Question | Metric | Phase |
+| --- | --- | --- | --- |
+| 1 | Does the model fit the training data? | In-sample RMSE, AIC | Phase 3, Phase 5 |
+| 2 | Does the model generalize to new data? | Out-of-sample RMSE, MAE | Phase 3, Phase 5 |
+| 3 | Does the model predict direction correctly? | Directional accuracy (hit rate) | Phase 3, Phase 5, Phase 6 |
+| 4 | Does the directional skill generate gross P&L? | Gross cumulative return | Phase 6 |
+| 5 | Does the strategy survive costs and risk? | Net return, Sharpe, max drawdown | Phase 6 |
+
+The fact that PatchTST wins steps 1–3 but SARIMAX wins steps 4–5 is precisely what makes Phase 6 a meaningful and honest contribution to the project. Had Phase 6 simply confirmed "PatchTST wins economically too," the result would be consistent but less informative. The discrepancy between statistical and economic rankings is the insight.
+
+### What the results do and do not prove
+
+**What Phase 6 proves:**
+
+- Over this specific historical sample with this specific trading rule and these specific cost assumptions, SARIMAX generates a slightly higher Sharpe ratio and net return than PatchTST
+- Neither model achieves consistently high directional accuracy across all market regimes (fold-by-fold variability is large)
+- The 40% maximum drawdown for both models is severe — a risk manager would likely impose position limits or stop-loss rules that this simple backtest does not include
+
+**What Phase 6 does not prove:**
+
+- That SARIMAX is universally better than PatchTST for financial forecasting
+- That the statistical advantage of PatchTST is meaningless (it remains real across all holdout metrics)
+- That either model would perform this well going forward (all backtests suffer from some degree of in-sample selection bias in the modeling choices, even with rolling windows)
+- That the strategy is investable as-is (no slippage for large orders, no short-selling constraints, no risk limits are modeled)
 
 ### Why the lower-turnover deep model still does not dominate
 
